@@ -26,3 +26,11 @@ class ConteoMensual:
     def __init__(self, mes: Mes, cantidadCasos: int):
         self.mes: Mes = mes
         self.cantidadCasos: int = cantidadCasos
+
+    def obtener_trimestre(self) -> int:
+        """Calcula a qué trimestre del año pertenece este mes.
+        
+        Returns:
+            int: Un valor del 1 al 4 representando el trimestre (Q1 a Q4).
+        """
+        return ((self.mes.value - 1) // 3) + 1
