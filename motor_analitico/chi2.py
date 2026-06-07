@@ -23,9 +23,15 @@ def analizar_dependencia_demografica(df: pd.DataFrame):
     # 2. Construcción de la Tabla de Contingencia
     # Cruzamos el "Bien Jurídico" (Robo, Homicidio, etc.) vs "Asentamiento"
     print("Construyendo tabla de contingencia...")
-    tabla_contingencia = pd.crosstab(df['Bien_juridico_afectado'], df['Asentamiento'])
-    
-    print("\n📊 TABLA DE CONTINGENCIA (Frecuencia Absoluta):")
+    #CÓDIGO NUEVO (Suma los crímenes reales)
+    tabla_contingencia = pd.crosstab(
+        index=df['Bien_juridico_afectado'], 
+        columns=df['Asentamiento'], 
+        values=df['Total_Anual'], 
+        aggfunc='sum'
+    ).fillna(0) # fillna(0) por si alguna combinación está vacía
+
+    print("\n TABLA DE CONTINGENCIA (Frecuencia Absoluta):")
     print(tabla_contingencia)
     
     # 3. La Prueba Matemática (Chi-cuadrada)
