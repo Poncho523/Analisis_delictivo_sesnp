@@ -22,8 +22,8 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
 
     # 2. Verificar si ya tenemos el archivo descargado (Patrón Caché)
     if not ruta_cache.exists():
-        print(f"☁️ Archivo local no encontrado. Descargando desde Google Drive (ID: {file_id}) ...")
-        print("⏳ Esto puede tardar un par de minutos (Aprox. 300MB)...")
+        print(f"Archivo local no encontrado. Descargando desde Google Drive (ID: {file_id}) ...")
+        print("Esto puede tardar un par de minutos (Aprox. 300MB)...")
         
         # Construir URL directa
         url_drive = f'https://drive.google.com/uc?id={file_id}'
@@ -32,13 +32,13 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
         gdown.download(url_drive, str(ruta_cache), quiet=False)
         
         if not ruta_cache.exists():
-            raise Exception("❌ Error crítico: Falló la descarga desde Google Drive.")
-        print("✅ Descarga completada y guardada en caché.")
+            raise Exception("Falló la descarga desde Google Drive.")
+        print("Descarga completada y guardada en caché.")
     else:
-        print(f"📁 Archivo encontrado en caché local: {ruta_cache.name}. Omitiendo descarga.")
+        print(f"Archivo encontrado en caché local: {ruta_cache.name}. Omitiendo descarga.")
 
     # 3. Extracción a Pandas
-    print("🧠 Cargando dataset en memoria (Pandas)...")
+    print("Cargando dataset en memoria (Pandas)...")
     df = pd.read_csv(ruta_cache, encoding="utf-8", low_memory=False)
     
     return df
@@ -47,9 +47,9 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
 if __name__ == "__main__":
     try:
         dataset = cargar_datos_incidencia()
-        print("\n📊 Resumen de los datos cargados:")
+        print("\nResumen de los datos cargados:")
         print(f"Registros: {len(dataset)}")
         print(f"Columnas: {len(dataset.columns)}")
         print(dataset.head(3))
     except Exception as e:
-        print(f"\n❌ Se produjo un error: {e}")
+        print(f"\n Se produjo un error: {e}")
