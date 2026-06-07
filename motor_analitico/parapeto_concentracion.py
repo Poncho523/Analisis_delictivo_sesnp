@@ -48,3 +48,6 @@ if __name__ == "__main__":
     print(f"\nCONCLUSIÓN DE PARETO:")
     print(f"El 80% de la incidencia delictiva se concentra en {cantidad_critica} municipios.")
     print(f"Esto representa el {porcentaje_municipios:.2f}% del total de municipios del país.")
+
+    #Redactar una conclusion con base en lo ya resultado
+    
