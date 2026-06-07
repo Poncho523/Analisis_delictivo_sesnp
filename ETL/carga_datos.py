@@ -1,51 +1,55 @@
 import pandas as pd
+import gdown
+import os
 from pathlib import Path
 
-def cargar_datos_incidencia(ruta_csv: str | Path | None = None) -> pd.DataFrame:
-    """Extrae el dataset de incidencia delictiva hacia la memoria (DataFrame).
+def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') -> pd.DataFrame:
+    """Extrae el dataset de incidencia delictiva desde Google Drive hacia la memoria.
     
-    Esta función actúa como la Capa de Acceso a Datos. Centraliza la lectura 
-    para que, al migrar a PostgreSQL, solo se modifique este archivo usando 
-    pd.read_sql(), protegiendo así todos los scripts de análisis.
+    Implementa un patrón de caché local: descarga el archivo desde la nube solo 
+    si no existe localmente. Utiliza 'gdown' para sortear la advertencia de 
+    análisis de virus de Google Drive en archivos pesados (>100MB).
 
     Args:
-        ruta_csv (str | Path | None): Ruta al archivo CSV. Si es None, 
-            buscará automáticamente 'datos_nivelados_2015.csv' en la 
-            raíz del proyecto.
+        file_id (str): El identificador único del archivo en Google Drive.
 
     Returns:
         pd.DataFrame: El dataset cargado, listo para cálculos matemáticos.
-
-    Raises:
-        FileNotFoundError: Si el archivo no existe en la ruta calculada.
     """
-    # 1. Resolución dinámica de la ruta
-    if ruta_csv is None:
-        # __file__ es este script. .parent es la carpeta ETL, 
-        # el segundo .parent es la raíz del proyecto.
-        ruta_base = Path(__file__).parent.parent
-        ruta_archivo = ruta_base / "datos_nivelados_2015.csv"
+    # 1. Definir dónde se guardará la copia caché localmente
+    ruta_base = Path(__file__).parent.parent
+    ruta_cache = ruta_base / "datos_nivelados_2015_cache.csv"
+
+    # 2. Verificar si ya tenemos el archivo descargado (Patrón Caché)
+    if not ruta_cache.exists():
+        print(f"☁️ Archivo local no encontrado. Descargando desde Google Drive (ID: {file_id}) ...")
+        print("⏳ Esto puede tardar un par de minutos (Aprox. 300MB)...")
+        
+        # Construir URL directa
+        url_drive = f'https://drive.google.com/uc?id={file_id}'
+        
+        # gdown maneja automáticamente el token de confirmación de archivos grandes
+        gdown.download(url_drive, str(ruta_cache), quiet=False)
+        
+        if not ruta_cache.exists():
+            raise Exception("❌ Error crítico: Falló la descarga desde Google Drive.")
+        print("✅ Descarga completada y guardada en caché.")
     else:
-        ruta_archivo = Path(ruta_csv)
+        print(f"📁 Archivo encontrado en caché local: {ruta_cache.name}. Omitiendo descarga.")
 
-    # 2. Validación de seguridad antes de que Pandas colapse
-    if not ruta_archivo.exists():
-        raise FileNotFoundError(
-            f"❌ No se encontró el dataset en: {ruta_archivo}\n"
-            "Verifica que el archivo exista y no esté dentro del .gitignore temporalmente."
-        )
-
-    # 3. Extracción de datos
-    # low_memory=False evita advertencias de tipos de datos en columnas mixtas al leer CSVs grandes
-    print(f"Leyendo datos desde: {ruta_archivo.name} ...")
-    df = pd.read_csv(ruta_archivo, encoding="utf-8", low_memory=False)
+    # 3. Extracción a Pandas
+    print("🧠 Cargando dataset en memoria (Pandas)...")
+    df = pd.read_csv(ruta_cache, encoding="utf-8", low_memory=False)
     
     return df
 
-# Bloque de prueba rápida (Solo se ejecuta si corres este script directamente)
+# Bloque de prueba rápida
 if __name__ == "__main__":
     try:
         dataset = cargar_datos_incidencia()
-        print(f"✅ ¡Éxito! Dataset cargado con {len(dataset)} registros y {len(dataset.columns)} columnas.")
+        print("\n📊 Resumen de los datos cargados:")
+        print(f"Registros: {len(dataset)}")
+        print(f"Columnas: {len(dataset.columns)}")
+        print(dataset.head(3))
     except Exception as e:
-        print(e)
+        print(f"\n❌ Se produjo un error: {e}")
