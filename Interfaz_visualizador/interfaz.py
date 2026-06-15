@@ -4,7 +4,6 @@ import numpy as np
 import sys
 from pathlib import Path
 
-# st.set_page_config define cómo se ve la pestaña del navegador.
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
 
@@ -14,8 +13,9 @@ sys.path.append(str(ruta_raiz))
 
 from ETL.carga_datos import cargar_datos_incidencia
 from motor_analitico.parapeto_concentracion import calcular_pareto_municipios
+from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 
-# @st.cache_data Memoriza el resultado de la función para no leer el CSV
+# @st.cache_data Memoriza el resultado de la función para no leer el CSV completo siempreAAA
 @st.cache_data
 def obtener_datos_cacheados():
     return cargar_datos_incidencia()
@@ -37,7 +37,6 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
 
 
     st.subheader("Mapa de Concentración Delictiva")
-    # Nota: Tu mapa actual usa datos random. Cuando quieras usar datos reales,
     # el dataframe que le pases a st.map() DEBE tener columnas llamadas exactamente 'lat' y 'lon'.
     mapa_datos = pd.DataFrame(
         np.random.randn(100, 2) / [10, 10] + [23.6345, -102.5528], 
@@ -70,25 +69,52 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         columnas_ver = ['Municipio', 'Entidad', 'Tasa_Anual_100k']
         st.dataframe(df_pareto[columnas_ver].head(5), hide_index=True)
 
-
 def mostrar_tabla_datos(df: pd.DataFrame):
-    st.title("Explorador de Datos (Consultador POO)")
-    st.markdown("Consulta de registros del dataset original.")
+    st.title("🗄️ Explorador de Inteligencia (Motor POO)")
+    st.markdown("Consulta de registros evaluados a través del Modelo de Dominio.")
     
-    # st.selectbox crea un menú desplegable. 
+    # 1. Filtros UI
     bienes_juridicos = ["Todos"] + list(df["Bien_juridico_afectado"].unique())
     tipo_filtro = st.selectbox("Filtrar por Bien Jurídico Afectado:", bienes_juridicos)
     
     df_filtrado = df
     if tipo_filtro != "Todos":
         df_filtrado = df[df["Bien_juridico_afectado"] == tipo_filtro]
+    
+    # 2. EL PUENTE: De Pandas a Objetos
+    # Tomamos solo 50 registros para no saturar la pantalla
+    st.info("Ensamblando grafo de objetos POO...")
+    lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado.head(50))
+    
+    # 3. RENDERIZADO DE TARJETAS (Explotando la POO)
+    for registro in lista_registros_poo:
         
-    # st.dataframe mostrará los primeros 1000 registros para que el navegador no colapse.
-    st.dataframe(df_filtrado.head(1000), use_container_width=True, hide_index=True)
+        # st.expander crea una "caja" desplegable para cada registro
+        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.tipoDelito}"
+        with st.expander(titulo_caja):
+            
+            # Dividimos el interior de la caja en 3 columnas
+            c1, c2, c3 = st.columns(3)
+            
+            # Columna 1: Usamos los métodos de la clase Delito
+            c1.markdown("**Taxonomía Penal**")
+            c1.write(f"**Subtipo:** {registro.clasificacion.subtipoDelito}")
+            c1.write(f"**Prioridad de Atención:** Nivel {registro.clasificacion.calcular_peso_estadistico()}")
+            
+            # Columna 2: Usamos los métodos de la clase Municipio
+            c2.markdown("**Contexto Demográfico**")
+            c2.write(f"**Asentamiento:** {registro.municipio.clasificar_asentamiento(df_filtrado.iloc[0]['POB_TOTAL'])}")
+            c2.write(f"**Tasa 100k:** {registro.tasaAnual100k:.2f}")
+            
+            # Columna 3: Usamos los métodos de Temporalidad
+            mes_moda = registro.obtener_mes_moda()
+            c3.markdown("**Alerta Temporal**")
+            c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
+            c3.write(f"**Tendencia:** {registro.calcular_tendencia_semestral()}")
 
 
 
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Logo_de_la_Polic%C3%ADa_Federal_%28M%C3%A9xico%29.svg/1200px-Logo_de_la_Polic%C3%ADa_Federal_%28M%C3%A9xico%29.svg.png", width=100)
+st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
 st.sidebar.title("Navegación")
 
 # st.sidebar.radio crea opciones excluyentes en la barra lateral.

@@ -66,3 +66,17 @@ class RegistroIncidencia:
         elif self.tasaAnual100k >= umbral_medio:
             return "Medio"
         return "Bajo"
+    def calcular_tendencia_semestral(self) -> str:
+        """Compara el primer semestre vs el segundo para detectar alzas criminales."""
+        if len(self.conteos) != 12:
+            return "Datos Incompletos"
+            
+        casos_s1 = sum(c.cantidadCasos for c in self.conteos[:6])
+        casos_s2 = sum(c.cantidadCasos for c in self.conteos[6:])
+        
+        if casos_s2 > casos_s1:
+            return "Alza Criminal en Semestre 2"
+        elif casos_s1 > casos_s2:
+            return "Reducción Criminal en Semestre 2"
+        else:
+            return "Criminalidad Estable"
