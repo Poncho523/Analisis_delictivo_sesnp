@@ -94,10 +94,11 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     if bien_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Bien_juridico_afectado"] == bien_sel]
     
-    st.info(f"Ensamblando grafo de objetos POO para {len(df_filtrado)} registros encontrados...")
-    lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado.head(50))
-
-    st.subheader(" Resumen ")
+    st.info(f"Ensamblando grafo de objetos para {len(df_filtrado)} registros encontrados...")
+    
+    lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
+    
+    st.subheader("Resumen Ejecutivo Global")
     
     conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
     lista_meses = []
@@ -110,20 +111,22 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         if mes_obj:
             lista_meses.append(mes_obj.mes.name)
             
-    # Calculamos el mes que más se repite
+    from collections import Counter
     mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "N/A"
     
     cr1, cr2, cr3, cr4 = st.columns(4)
-    cr1.metric("Registros Consultados", len(lista_registros_poo))
-    cr2.metric("Riesgo Alto ", conteo_riesgos["Alto"])
-    cr3.metric("Riesgo Medio ", conteo_riesgos["Medio"])
+    cr1.metric("Registros Procesados", f"{len(lista_registros_poo):,}")
+    cr2.metric("Municipios Riesgo Alto ", f"{conteo_riesgos['Alto']:,}")
+    cr3.metric("Municipios Riesgo Medio ", f"{conteo_riesgos['Medio']:,}")
     cr4.metric("Mes Crítico Global", mes_predominante)
     
     st.divider()
-    st.markdown("### Detalles por Registro")    
-    for registro in lista_registros_poo:
+    
+    st.markdown("### Detalles de Casos de Estudio (Muestra de 50)")
+    
+    for registro in lista_registros_poo[:50]:
         
-        titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        titulo_caja = f" {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
         with st.expander(titulo_caja):
             c1, c2, c3 = st.columns(3)
@@ -145,7 +148,6 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
             c3.write(f"**Tendencia:** {registro.calcular_tendencia_semestral()}")
             c3.write(f"**Patrón:** {registro.determinar_patron_ocurrencia()}")
-
 
 def mostrar_analisis_demografico(df: pd.DataFrame):
     st.title(" Dependencia Demográfica (Chi-Cuadrada)")
