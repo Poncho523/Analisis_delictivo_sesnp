@@ -1,6 +1,6 @@
-from municipio import Municipio
-from clasificacion_delito import ClasificacionDelito
-from conteo_mensual import ConteoMensual
+from dominio.municipio import Municipio
+from dominio.clasificacion_delito import DelitoAbstracto
+from dominio.conteo_mensual import ConteoMensual
 
 class RegistroIncidencia:
     """Clase central que asocia geografía, taxonomía penal y temporalidad.
@@ -19,14 +19,14 @@ class RegistroIncidencia:
     """
 
     def __init__(self, id_registro: int, anio: int, totalAnual: int, tasaAnual100k: float, 
-                 municipio: Municipio, clasificacion: ClasificacionDelito):
+                 municipio: Municipio, clasificacion: DelitoAbstracto):
         self.id_registro: int = id_registro
         self.anio: int = anio
         self.totalAnual: int = totalAnual
         self.tasaAnual100k: float = tasaAnual100k
         
         self.municipio: Municipio = municipio
-        self.clasificacion: ClasificacionDelito = clasificacion
+        self.clasificacion: DelitoAbstracto = clasificacion
         
         self.conteos: list[ConteoMensual] = []
 
@@ -66,3 +66,17 @@ class RegistroIncidencia:
         elif self.tasaAnual100k >= umbral_medio:
             return "Medio"
         return "Bajo"
+    def calcular_tendencia_semestral(self) -> str:
+        """Compara el primer semestre vs el segundo para detectar alzas criminales."""
+        if len(self.conteos) != 12:
+            return "Datos Incompletos"
+            
+        casos_s1 = sum(c.cantidadCasos for c in self.conteos[:6])
+        casos_s2 = sum(c.cantidadCasos for c in self.conteos[6:])
+        
+        if casos_s2 > casos_s1:
+            return "Alza Criminal en Semestre 2"
+        elif casos_s1 > casos_s2:
+            return "Reducción Criminal en Semestre 2"
+        else:
+            return "Criminalidad Estable"
