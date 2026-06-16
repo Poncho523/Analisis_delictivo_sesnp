@@ -19,7 +19,7 @@ class RegistroIncidencia:
     """
 
     def __init__(self, id_registro: int, anio: int, totalAnual: int, tasaAnual100k: float, 
-                 municipio: Municipio, clasificacion: ClasificacionDelito):
+                 municipio: Municipio, clasificacion: DelitoAbstracto):
         self.id_registro: int = id_registro
         self.anio: int = anio
         self.totalAnual: int = totalAnual
