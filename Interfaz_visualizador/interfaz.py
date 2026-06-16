@@ -73,45 +73,59 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("🗄️ Explorador de Inteligencia (Motor POO)")
     st.markdown("Consulta de registros evaluados a través del Modelo de Dominio.")
     
-    # 1. Filtros UI
-    bienes_juridicos = ["Todos"] + list(df["Bien_juridico_afectado"].unique())
-    tipo_filtro = st.selectbox("Filtrar por Bien Jurídico Afectado:", bienes_juridicos)
+    # 1. FILTROS EN CASCADA (UI Mejorada)
+    col_f1, col_f2, col_f3 = st.columns(3)
     
-    df_filtrado = df
-    if tipo_filtro != "Todos":
-        df_filtrado = df[df["Bien_juridico_afectado"] == tipo_filtro]
+    with col_f1:
+        entidades = ["Todas"] + list(df["Entidad"].unique())
+        estado_sel = st.selectbox("1. Entidad Federativa:", entidades)
+        
+    with col_f2:
+        # Si elige un estado, filtramos los municipios de ese estado
+        if estado_sel == "Todas":
+            municipios = ["Todos"]
+        else:
+            municipios = ["Todos"] + list(df[df["Entidad"] == estado_sel]["Municipio"].unique())
+        mun_sel = st.selectbox("2. Municipio:", municipios)
+        
+    with col_f3:
+        bienes = ["Todos"] + list(df["Bien_juridico_afectado"].unique())
+        bien_sel = st.selectbox("3. Bien Jurídico:", bienes)
+
+    # 2. APLICAR LOS FILTROS AL DATAFRAME
+    df_filtrado = df.copy()
+    if estado_sel != "Todas":
+        df_filtrado = df_filtrado[df_filtrado["Entidad"] == estado_sel]
+    if mun_sel != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["Municipio"] == mun_sel]
+    if bien_sel != "Todos":
+        df_filtrado = df_filtrado[df_filtrado["Bien_juridico_afectado"] == bien_sel]
     
-    # 2. EL PUENTE: De Pandas a Objetos
-    # Tomamos solo 50 registros para no saturar la pantalla
-    st.info("Ensamblando grafo de objetos POO...")
+    # 3. EL PUENTE: De Pandas a Objetos
+    st.info(f"Ensamblando grafo de objetos POO para {len(df_filtrado)} registros encontrados...")
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado.head(50))
     
-    # 3. RENDERIZADO DE TARJETAS (Explotando la POO)
+    # 4. RENDERIZADO DE TARJETAS
     for registro in lista_registros_poo:
         
-        # st.expander crea una "caja" desplegable para cada registro
-        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.tipoDelito}"
+        # SOLUCIÓN DE DUPLICADOS: Ahora el título incluye el Subtipo y la Modalidad
+        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        
         with st.expander(titulo_caja):
-            
-            # Dividimos el interior de la caja en 3 columnas
             c1, c2, c3 = st.columns(3)
             
-            # Columna 1: Usamos los métodos de la clase Delito
             c1.markdown("**Taxonomía Penal**")
             c1.write(f"**Subtipo:** {registro.clasificacion.subtipoDelito}")
             c1.write(f"**Prioridad de Atención:** Nivel {registro.clasificacion.calcular_peso_estadistico()}")
             
-            # Columna 2: Usamos los métodos de la clase Municipio
             c2.markdown("**Contexto Demográfico**")
             c2.write(f"**Asentamiento:** {registro.municipio.clasificar_asentamiento(df_filtrado.iloc[0]['POB_TOTAL'])}")
             c2.write(f"**Tasa 100k:** {registro.tasaAnual100k:.2f}")
             
-            # Columna 3: Usamos los métodos de Temporalidad
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
             c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
             c3.write(f"**Tendencia:** {registro.calcular_tendencia_semestral()}")
-
 
 
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)

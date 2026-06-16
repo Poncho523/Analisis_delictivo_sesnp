@@ -26,7 +26,7 @@ class RegistroIncidencia:
         self.tasaAnual100k: float = tasaAnual100k
         
         self.municipio: Municipio = municipio
-        self.clasificacion: ClasificacionDelito = clasificacion
+        self.clasificacion: DelitoAbstracto = clasificacion
         
         self.conteos: list[ConteoMensual] = []
 
