@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import sys
 from pathlib import Path
+from collections import Counter
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
@@ -95,10 +96,34 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     st.info(f"Ensamblando grafo de objetos POO para {len(df_filtrado)} registros encontrados...")
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado.head(50))
+
+    st.subheader(" Resumen ")
     
+    conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
+    lista_meses = []
+    
+    for reg in lista_registros_poo:
+        riesgo = reg.categorizar_nivel_riesgo(umbral_alto=50.0, umbral_medio=20.0)
+        conteo_riesgos[riesgo] += 1
+        
+        mes_obj = reg.obtener_mes_moda()
+        if mes_obj:
+            lista_meses.append(mes_obj.mes.name)
+            
+    # Calculamos el mes que más se repite
+    mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "N/A"
+    
+    cr1, cr2, cr3, cr4 = st.columns(4)
+    cr1.metric("Registros Consultados", len(lista_registros_poo))
+    cr2.metric("Riesgo Alto ", conteo_riesgos["Alto"])
+    cr3.metric("Riesgo Medio ", conteo_riesgos["Medio"])
+    cr4.metric("Mes Crítico Global", mes_predominante)
+    
+    st.divider()
+    st.markdown("### Detalles por Registro")    
     for registro in lista_registros_poo:
         
-        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
         with st.expander(titulo_caja):
             c1, c2, c3 = st.columns(3)
@@ -123,7 +148,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
 
 
 def mostrar_analisis_demografico(df: pd.DataFrame):
-    st.title("⚖️ Dependencia Demográfica (Chi-Cuadrada)")
+    st.title(" Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza científicamente si el tamaño de la ciudad dicta el tipo de crimen que sufre.")
     
     st.info("Procesando matriz condicional y residuos estandarizados...")
@@ -133,9 +158,9 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     col1, col2 = st.columns(2)
     
     if resultado['diagnostico']['existe_relacion']:
-        col1.success("✅ **Comprobado:** Sí existe una relación estadística entre el entorno y el delito.")
+        col1.success(" **Comprobado:** Sí existe una relación estadística entre el entorno y el delito.")
     else:
-        col1.error("❌ **Sin Relación:** El entorno no dicta el crimen.")
+        col1.error(" **Sin Relación:** El entorno no dicta el crimen.")
         
     col2.metric("Fuerza de la Relación (V de Cramér)", 
                 resultado['diagnostico']['fuerza_relacion'], 
@@ -162,13 +187,13 @@ st.sidebar.title("Navegación")
 
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
-    ("Inicio (Mapa)", "Consultador de Datos", "Patrones y Pareto", "Análisis Demográfico")
+    ("Inicio", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
 )
 
 # A las funciones les pasamos el dataset_global cacheado para que trabajen.
-if opcion == "Inicio (Mapa)":
+if opcion == "Inicio":
     mostrar_pantalla_inicio(dataset_global)
-elif opcion == "Consultador de Datos":
+elif opcion == "Consultar Datos":
     mostrar_tabla_datos(dataset_global)
 elif opcion == "Patrones y Pareto":
     mostrar_patrones_delictivos(dataset_global)
