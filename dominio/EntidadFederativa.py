@@ -1,4 +1,4 @@
-from municipio import Municipio
+from dominio.municipio import Municipio
 
 class EntidadFederativa:
     """Representa una entidad federativa (estado) geográfica.

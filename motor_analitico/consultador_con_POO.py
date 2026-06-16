@@ -1,4 +1,13 @@
 import pandas as pd
+import sys
+from pathlib import Path
+
+
+
+ruta_raiz = Path(__file__).parent.parent
+sys.path.append(str(ruta_raiz))
+
+
 from dominio.municipio import Municipio
 from dominio.clasificacion_delito import (
     DelitoViolento, DelitoPatrimonial, DelitoFamiliar, DelitoSexual, DelitoAbstracto

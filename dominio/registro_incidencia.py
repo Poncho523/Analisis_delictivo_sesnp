@@ -1,5 +1,5 @@
 from municipio import Municipio
-from clasificacion_delito import ClasificacionDelito
+from clasificacion_delito import DelitoAbstracto
 from conteo_mensual import ConteoMensual
 
 class RegistroIncidencia:
