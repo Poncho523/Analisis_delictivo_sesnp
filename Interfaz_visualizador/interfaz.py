@@ -70,7 +70,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         st.dataframe(df_pareto[columnas_ver].head(5), hide_index=True)
 
 def mostrar_tabla_datos(df: pd.DataFrame):
-    st.title("🗄️ Explorador de Inteligencia (Motor POO)")
+    st.title(" Explorador de Inteligencia (Motor POO)")
     st.markdown("Consulta de registros evaluados a través del Modelo de Dominio.")
     
     # 1. FILTROS EN CASCADA (UI Mejorada)
@@ -117,10 +117,15 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c1.markdown("**Taxonomía Penal**")
             c1.write(f"**Subtipo:** {registro.clasificacion.subtipoDelito}")
             c1.write(f"**Prioridad de Atención:** Nivel {registro.clasificacion.calcular_peso_estadistico()}")
-            
+
             c2.markdown("**Contexto Demográfico**")
             c2.write(f"**Asentamiento:** {registro.municipio.clasificar_asentamiento(df_filtrado.iloc[0]['POB_TOTAL'])}")
             c2.write(f"**Tasa 100k:** {registro.tasaAnual100k:.2f}")
+            
+            # Le pasamos umbrales criminológicos lógicos (ej. 50 crímenes y 20 crímenes por cada 100k habs)
+            riesgo = registro.categorizar_nivel_riesgo(umbral_alto=50.0, umbral_medio=20.0)
+            c2.write(f"**Nivel de Riesgo:** {riesgo} 🚦")
+            
             
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
