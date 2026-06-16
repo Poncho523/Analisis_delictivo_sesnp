@@ -1,6 +1,6 @@
-from municipio import Municipio
-from clasificacion_delito import DelitoAbstracto
-from conteo_mensual import ConteoMensual
+from dominio.municipio import Municipio
+from dominio.clasificacion_delito import DelitoAbstracto
+from dominio.conteo_mensual import ConteoMensual
 
 class RegistroIncidencia:
     """Clase central que asocia geografía, taxonomía penal y temporalidad.
