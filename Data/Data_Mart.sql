@@ -11,7 +11,7 @@ WITH poblacion_agrupada AS (
 SELECT
     d.*,
     COALESCE(p.poblacion_total, 0) AS "POB_TOTAL",
-    -- Calculamos la tasa protegiendo el código de divisiones por cero
+    -- Calculamos la tasa por cada 100k habitantes
     CASE
         WHEN COALESCE(p.poblacion_total, 0) > 0 THEN
             ROUND((d."Total_Anual"::numeric / p.poblacion_total) * 100000, 2)
@@ -19,11 +19,6 @@ SELECT
     END AS "Tasa_Anual_100k"
 FROM delitos_crudos d
 LEFT JOIN poblacion_agrupada p ON d."Cve_Municipio" = p."Cve_Municipio";
-
---Comprobamos que se hizo correctamente
-SELECT "Cve_Municipio", "Municipio", "Total_Anual", "POB_TOTAL", "Tasa_Anual_100k"
-FROM vw_delitos_nivelados
-LIMIT 10;
 
 
 --Creamos el DATA MART y los indices
@@ -38,10 +33,10 @@ SELECT
     "Subtipo_de_delito",
     "Modalidad",
     "POB_TOTAL",
-    -- Características temporales (Features cuantitativas)
+    -- Características temporales
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-    -- Variables Objetivo potenciales (Targets)
+    -- Variables importantes
     "Total_Anual",
     "Tasa_Anual_100k"
 FROM vw_delitos_nivelados;
