@@ -46,18 +46,15 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
 
 def mostrar_patrones_delictivos(df: pd.DataFrame):
     st.title("Análisis de Patrones (Ley de Pareto)")
-    
-    # st.info pone un cuadro azul de aviso. st.warning es amarillo, st.error es rojo.
     st.info("Ejecutando motor analítico en tiempo real...")
     
-    # Le pasamos el dataset_global a tu función y guardamos el resultado.
     df_pareto = calcular_pareto_municipios(df)
     
     col1, col2 = st.columns([2, 1]) 
     
     with col1:
         st.subheader("Curva de Concentración Acumulada")
-        st.line_chart(df_pareto['Porcentaje_Acumulado'].head(100)) # Graficamos solo el top 100 para que se vea claro
+        st.line_chart(df_pareto['Porcentaje_Acumulado'].head(100))
         
     with col2:
         st.subheader("Top 5 Focos Rojos")
@@ -66,27 +63,39 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
 
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("🗄️ Explorador de Inteligencia (Motor POO)")
+    
+    # -----------------------------------------------------------------
+    # LA SOLUCIÓN: Muestreo Representativo (Performance)
+    # -----------------------------------------------------------------
+    TAMANO_MUESTRA = 100000
+    if len(df) > TAMANO_MUESTRA:
+        df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
+        st.caption(f"Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
+    else:
+        df_muestra = df
+    # -----------------------------------------------------------------
+
     st.markdown("Consulta de registros evaluados a través del Modelo de Dominio.")
     
     col_f1, col_f2, col_f3 = st.columns(3)
     
     with col_f1:
-        entidades = ["Todas"] + list(df["Entidad"].unique())
+        entidades = ["Todas"] + list(df_muestra["Entidad"].unique())
         estado_sel = st.selectbox("1. Entidad Federativa:", entidades)
         
     with col_f2:
-        # Si elige un estado, filtramos los municipios de ese estado
         if estado_sel == "Todas":
             municipios = ["Todos"]
         else:
-            municipios = ["Todos"] + list(df[df["Entidad"] == estado_sel]["Municipio"].unique())
+            municipios = ["Todos"] + list(df_muestra[df_muestra["Entidad"] == estado_sel]["Municipio"].unique())
         mun_sel = st.selectbox("2. Municipio:", municipios)
         
     with col_f3:
-        bienes = ["Todos"] + list(df["Bien_juridico_afectado"].unique())
+        bienes = ["Todos"] + list(df_muestra["Bien_juridico_afectado"].unique())
         bien_sel = st.selectbox("3. Bien Jurídico:", bienes)
 
-    df_filtrado = df.copy()
+    # Aplicamos los filtros a la MUESTRA, no a los 2 millones
+    df_filtrado = df_muestra.copy()
     if estado_sel != "Todas":
         df_filtrado = df_filtrado[df_filtrado["Entidad"] == estado_sel]
     if mun_sel != "Todos":
@@ -94,9 +103,15 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     if bien_sel != "Todos":
         df_filtrado = df_filtrado[df_filtrado["Bien_juridico_afectado"] == bien_sel]
     
+    if len(df_filtrado) == 0:
+        st.warning("No se encontraron registros con estos filtros en la muestra.")
+        return
+
     st.info(f"Ensamblando grafo de objetos para {len(df_filtrado)} registros encontrados...")
     
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
+
+    #KPis
     
     st.subheader("Resumen Ejecutivo Global")
     
@@ -111,22 +126,20 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         if mes_obj:
             lista_meses.append(mes_obj.mes.name)
             
-    from collections import Counter
     mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "N/A"
     
     cr1, cr2, cr3, cr4 = st.columns(4)
     cr1.metric("Registros Procesados", f"{len(lista_registros_poo):,}")
-    cr2.metric("Municipios Riesgo Alto ", f"{conteo_riesgos['Alto']:,}")
-    cr3.metric("Municipios Riesgo Medio ", f"{conteo_riesgos['Medio']:,}")
+    cr2.metric("Municipios Riesgo Alto", f"{conteo_riesgos['Alto']:,}")
+    cr3.metric("Municipios Riesgo Medio", f"{conteo_riesgos['Medio']:,}")
     cr4.metric("Mes Crítico Global", mes_predominante)
     
     st.divider()
     
-    st.markdown("### Detalles de Casos de Estudio (Muestra de 50)")
+    st.markdown("### Detalles de Casos de Estudio (Top 50 visualizados)")
     
     for registro in lista_registros_poo[:50]:
-        
-        titulo_caja = f" {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
         with st.expander(titulo_caja):
             c1, c2, c3 = st.columns(3)
@@ -139,7 +152,6 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c2.markdown("**Contexto Demográfico**")
             c2.write(f"**Asentamiento:** {registro.municipio.clasificar_asentamiento(df_filtrado.iloc[0]['POB_TOTAL'])}")
             c2.write(f"**Tasa 100k:** {registro.tasaAnual100k:.2f}")
-            
             riesgo = registro.categorizar_nivel_riesgo(umbral_alto=50.0, umbral_medio=20.0)
             c2.write(f"**Nivel de Riesgo:** {riesgo} 🚦")
             
@@ -150,7 +162,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c3.write(f"**Patrón:** {registro.determinar_patron_ocurrencia()}")
 
 def mostrar_analisis_demografico(df: pd.DataFrame):
-    st.title(" Dependencia Demográfica (Chi-Cuadrada)")
+    st.title("⚖️ Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza científicamente si el tamaño de la ciudad dicta el tipo de crimen que sufre.")
     
     st.info("Procesando matriz condicional y residuos estandarizados...")
@@ -160,9 +172,9 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     col1, col2 = st.columns(2)
     
     if resultado['diagnostico']['existe_relacion']:
-        col1.success(" **Comprobado:** Sí existe una relación estadística entre el entorno y el delito.")
+        col1.success("✅ **Comprobado:** Sí existe una relación estadística entre el entorno y el delito.")
     else:
-        col1.error(" **Sin Relación:** El entorno no dicta el crimen.")
+        col1.error("❌ **Sin Relación:** El entorno no dicta el crimen.")
         
     col2.metric("Fuerza de la Relación (V de Cramér)", 
                 resultado['diagnostico']['fuerza_relacion'], 
@@ -180,19 +192,16 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.subheader("3. Perfil Criminal por Zona (%)")
     st.markdown("Lectura: *Del 100% de los crímenes en cada tipo de zona, así se distribuyen los delitos.*")
     df_porcentajes = resultado['perfil_criminal_porcentajes']
-    # Gráfica de barras nativa de Streamlit
     st.bar_chart(df_porcentajes)
 
-
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
-st.sidebar.title("Navegación")
+st.sidebar.title("Menu")
 
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
     ("Inicio", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
 )
 
-# A las funciones les pasamos el dataset_global cacheado para que trabajen.
 if opcion == "Inicio":
     mostrar_pantalla_inicio(dataset_global)
 elif opcion == "Consultar Datos":
