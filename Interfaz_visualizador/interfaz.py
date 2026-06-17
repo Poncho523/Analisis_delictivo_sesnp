@@ -48,32 +48,48 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     st.title("Análisis de Patrones (Ley de Pareto)")
     st.info("Ejecutando motor analítico en tiempo real...")
     
-    df_pareto = calcular_pareto_municipios(df)
+    # 1. RECIBIMOS EL PAQUETE COMPLETO DE INTELIGENCIA
+    resultado_pareto = calcular_pareto_municipios(df)
+    df_pareto = resultado_pareto["datos_grafica"]
+    
+    # 2. STORYTELLING: Mostramos la conclusión antes que la gráfica
+    st.subheader("La Historia del 80/20 en el Crimen Nacional")
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
+    kpi2.metric("Municipios que concentran el 80% del crimen", f"{resultado_pareto['cantidad_critica']:,}", "Focos Rojos", delta_color="inverse")
+    kpi3.metric("% del Territorio Nacional Afectado", f"{resultado_pareto['porcentaje_territorio']:.1f}%")
+    
+    st.divider()
     
     col1, col2 = st.columns([2, 1]) 
     
     with col1:
         st.subheader("Curva de Concentración Acumulada")
-        st.line_chart(df_pareto['Porcentaje_Acumulado'].head(100))
+        
+        # 3. TRUCO DE GRÁFICA PARA STREAMLIT
+        # Para que los nombres de los municipios salgan en el Eje X, los ponemos como el 'index'
+        df_grafica = df_pareto.set_index('Municipio').copy()
+        
+        # Creamos una columna falsa donde todos los valores son 80 para dibujar la línea horizontal
+        df_grafica['Umbral 80% (Pareto)'] = 80.0
+        
+        # Dibujamos las dos líneas a la vez. Mostramos los peores 250 municipios para ver el cruce.
+        st.line_chart(df_grafica[['Porcentaje_Acumulado', 'Umbral 80% (Pareto)']].head(250))
         
     with col2:
-        st.subheader("Top 5 Focos Rojos")
+        st.subheader("Top 5 Focos Rojos Absolutos")
         columnas_ver = ['Municipio', 'Entidad', 'Tasa_Anual_100k']
         st.dataframe(df_pareto[columnas_ver].head(5), hide_index=True)
 
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("🗄️ Explorador de Inteligencia (Motor POO)")
     
-    # -----------------------------------------------------------------
-    # LA SOLUCIÓN: Muestreo Representativo (Performance)
-    # -----------------------------------------------------------------
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
         st.caption(f"⚠️ **Aviso Metodológico:** Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
     else:
         df_muestra = df
-    # -----------------------------------------------------------------
 
     st.markdown("Consulta de registros evaluados a través del Modelo de Dominio.")
     
@@ -94,7 +110,6 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         bienes = ["Todos"] + list(df_muestra["Bien_juridico_afectado"].unique())
         bien_sel = st.selectbox("3. Bien Jurídico:", bienes)
 
-    # Aplicamos los filtros a la MUESTRA, no a los 2 millones
     df_filtrado = df_muestra.copy()
     if estado_sel != "Todas":
         df_filtrado = df_filtrado[df_filtrado["Entidad"] == estado_sel]
@@ -109,10 +124,8 @@ def mostrar_tabla_datos(df: pd.DataFrame):
 
     st.info(f"Ensamblando grafo de objetos para {len(df_filtrado)} registros encontrados...")
     
-    # Transformamos el dataframe filtrado a POO
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
     
-    # --- KPIs GLOBALES (Basados en la muestra filtrada) ---
     st.subheader("Resumen Ejecutivo Global")
     
     conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
@@ -123,11 +136,9 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         conteo_riesgos[riesgo] += 1
         
         mes_obj = reg.obtener_mes_moda()
-        # SOLUCIÓN: Solo agregamos el mes a la lista si realmente hubo incidentes (> 0)
         if mes_obj and mes_obj.cantidadCasos > 0:
             lista_meses.append(mes_obj.mes.name)
             
-    # SOLUCIÓN: Si la lista quedó vacía (puros ceros), mostramos "Sin incidentes"
     mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "Sin incidentes"
     
     cr1, cr2, cr3, cr4 = st.columns(4)
@@ -138,7 +149,6 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     st.divider()
     
-    # --- RENDERIZADO VISUAL (Top 50 para no asfixiar el navegador) ---
     st.markdown("### Detalles de Casos de Estudio (Top 50 visualizados)")
     
     for registro in lista_registros_poo[:50]:
@@ -161,7 +171,6 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
             
-            # SOLUCIÓN: Validamos si hubo casos antes de mostrar el mes crítico en la tarjeta
             if mes_moda and mes_moda.cantidadCasos > 0:
                 c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
             else:
