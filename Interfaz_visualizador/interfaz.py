@@ -70,7 +70,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
-        st.caption(f"Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
+        st.caption(f"⚠️ **Aviso Metodológico:** Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
     else:
         df_muestra = df
     # -----------------------------------------------------------------
@@ -109,10 +109,10 @@ def mostrar_tabla_datos(df: pd.DataFrame):
 
     st.info(f"Ensamblando grafo de objetos para {len(df_filtrado)} registros encontrados...")
     
+    # Transformamos el dataframe filtrado a POO
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
-
-    #KPis
     
+    # --- KPIs GLOBALES (Basados en la muestra filtrada) ---
     st.subheader("Resumen Ejecutivo Global")
     
     conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
@@ -123,10 +123,12 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         conteo_riesgos[riesgo] += 1
         
         mes_obj = reg.obtener_mes_moda()
-        if mes_obj:
+        # SOLUCIÓN: Solo agregamos el mes a la lista si realmente hubo incidentes (> 0)
+        if mes_obj and mes_obj.cantidadCasos > 0:
             lista_meses.append(mes_obj.mes.name)
             
-    mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "N/A"
+    # SOLUCIÓN: Si la lista quedó vacía (puros ceros), mostramos "Sin incidentes"
+    mes_predominante = Counter(lista_meses).most_common(1)[0][0] if lista_meses else "Sin incidentes"
     
     cr1, cr2, cr3, cr4 = st.columns(4)
     cr1.metric("Registros Procesados", f"{len(lista_registros_poo):,}")
@@ -136,10 +138,11 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     st.divider()
     
+    # --- RENDERIZADO VISUAL (Top 50 para no asfixiar el navegador) ---
     st.markdown("### Detalles de Casos de Estudio (Top 50 visualizados)")
     
     for registro in lista_registros_poo[:50]:
-        titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
         with st.expander(titulo_caja):
             c1, c2, c3 = st.columns(3)
@@ -157,7 +160,13 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
-            c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
+            
+            # SOLUCIÓN: Validamos si hubo casos antes de mostrar el mes crítico en la tarjeta
+            if mes_moda and mes_moda.cantidadCasos > 0:
+                c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
+            else:
+                c3.write("**Mes Crítico:** Ninguno (0 casos)")
+                
             c3.write(f"**Tendencia:** {registro.calcular_tendencia_semestral()}")
             c3.write(f"**Patrón:** {registro.determinar_patron_ocurrencia()}")
 
