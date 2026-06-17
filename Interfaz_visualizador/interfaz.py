@@ -4,7 +4,7 @@ import numpy as np
 import sys
 from pathlib import Path
 from collections import Counter
-import plotly.express as px # <-- NUEVA LIBRERÍA PARA EL PASTEL
+import plotly.express as px
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
@@ -53,7 +53,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     resultado_pareto = calcular_pareto_municipios(df)
     df_pareto = resultado_pareto["datos_grafica"]
     
-    # 2. STORYTELLING: Mostramos la conclusión
+    # 2. STORYTELLING: Mostramos la conclusión antes que la gráfica
     st.subheader("La Historia del 80/20 en el Crimen Nacional")
     kpi1, kpi2, kpi3 = st.columns(3)
     kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
@@ -67,40 +67,35 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     with col1:
         st.subheader("Proporción de Territorialidad Criminal")
         
-        # --- TU IDEA: LA GRÁFICA DE PASTEL ---
         municipios_peligrosos = resultado_pareto['cantidad_critica']
         municipios_pacificos = resultado_pareto['total_municipios'] - municipios_peligrosos
         
-        # Creamos una tabla pequeña solo para el pastel
         datos_pastel = pd.DataFrame({
             "Categoría": ["Focos Rojos (Acumulan el 80% del crimen)", "Resto del País (Acumulan 20% del crimen)"],
             "Cantidad de Municipios": [municipios_peligrosos, municipios_pacificos]
         })
         
-        # Generamos el Pastel Interactivo con Plotly
         fig = px.pie(
             datos_pastel, 
             values='Cantidad de Municipios', 
             names='Categoría',
             color='Categoría',
             color_discrete_map={
-                "Focos Rojos (Acumulan el 80% del crimen)": "#ff4b4b", # Rojo alerta
-                "Resto del País (Acumulan 20% del crimen)": "#1f77b4"  # Azul pacífico
+                "Focos Rojos (Acumulan el 80% del crimen)": "#ff4b4b",
+                "Resto del País (Acumulan 20% del crimen)": "#1f77b4"
             },
-            hole=0.4 # Esto lo hace ver como una Dona (más moderno y elegante)
+            hole=0.4
         )
         
-        # Actualizamos el diseño para que el texto se vea por fuera
         fig.update_traces(textposition='outside', textinfo='percent+label')
-        
-        # Mostramos la gráfica en Streamlit
         st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Top Focos Rojos Absolutos")
         columnas_ver = ['Municipio', 'Entidad', 'Tasa_Anual_100k']
-        # st.dataframe muestra una tabla interactiva
-        st.dataframe(df_pareto[columnas_ver].head(10), hide_index=True)
+        df_mostrar = df_pareto[columnas_ver].head(10).copy()
+        df_mostrar['Tasa_Anual_100k'] = df_mostrar['Tasa_Anual_100k'].apply(lambda x: f"{x:,.2f}")
+        st.dataframe(df_mostrar, hide_index=True)
 
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("🗄️ Explorador de Inteligencia (Motor POO)")
@@ -228,10 +223,26 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
         
     st.divider()
     
-    st.subheader("3. Perfil Criminal por Zona (%)")
-    st.markdown("Lectura: *Del 100% de los crímenes en cada tipo de zona, así se distribuyen los delitos.*")
+    # --- LA SOLUCIÓN: HEATMAP DE PLOTLY ---
+    st.subheader("3. Perfil Criminal por Zona (Mapa de Calor %)")
+    st.markdown("Lectura: *Busca los cuadros más rojos. Representan la especialidad criminal de esa zona.*")
+    
     df_porcentajes = resultado['perfil_criminal_porcentajes']
-    st.bar_chart(df_porcentajes)
+    
+    # Creamos el Heatmap usando Plotly Express
+    fig = px.imshow(
+        df_porcentajes,
+        text_auto='.1f', # Muestra el número adentro del cuadro con 1 decimal
+        aspect="auto",   # Ajusta el tamaño a la pantalla
+        color_continuous_scale='YlOrRd', # Colores: De Amarillo (Yellow) a Rojo (Red)
+        labels=dict(x="Tipo de Asentamiento", y="Bien Jurídico Afectado", color="% de Concentración")
+    )
+    
+    # Truco visual: Ponemos los nombres de las columnas arriba en vez de abajo
+    fig.update_xaxes(side="top") 
+    
+    # Mostramos la gráfica interactiva en Streamlit
+    st.plotly_chart(fig, use_container_width=True)
 
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
 st.sidebar.title("Menu")
