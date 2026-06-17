@@ -66,18 +66,22 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     with col1:
         st.subheader("Curva de Concentración Acumulada")
         
-        # --- SOLUCIÓN DE LA GRÁFICA ---
-        df_grafica = df_pareto.copy()
+        # --- SOLUCIÓN DEFINITIVA DE LA GRÁFICA ---
+        # Tomamos los peores 250 municipios para visualizar el cruce claramente
+        df_grafica = df_pareto.head(250).copy()
         
-        # Creamos una columna numérica (1, 2, 3...) para evitar el orden alfabético
+        # Creamos la columna numérica para el Eje X explícito
         df_grafica['Ranking de Gravedad'] = range(1, len(df_grafica) + 1)
-        df_grafica = df_grafica.set_index('Ranking de Gravedad')
         
-        # Creamos el umbral recto
+        # Creamos el umbral recto para el Eje Y
         df_grafica['Umbral 80% (Pareto)'] = 80.0
         
-        # Ahora sí, dibujamos una curva suave y matemática
-        st.line_chart(df_grafica[['Porcentaje_Acumulado', 'Umbral 80% (Pareto)']].head(250))
+        # Le decimos a Streamlit EXACTAMENTE qué usar para evitar que use texto (Modo Estricto)
+        st.line_chart(
+            data=df_grafica,
+            x='Ranking de Gravedad',
+            y=['Porcentaje_Acumulado', 'Umbral 80% (Pareto)']
+        )
         
     with col2:
         st.subheader("Top Focos Rojos Absolutos")
