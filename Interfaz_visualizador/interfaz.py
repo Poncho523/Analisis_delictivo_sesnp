@@ -37,7 +37,49 @@ data_mart_global = obtener_data_mart_cacheado()
 
 
 def mostrar_pantalla_inicio(df: pd.DataFrame):
-    st.title("Sistema de Análisis Delictivo Nacional")
+    st.title("Centro de Inteligencia Criminal (SESNSP)")
+    st.markdown("Plataforma interactiva para perfilamiento y análisis de la incidencia delictiva municipal.")
+    
+    # 1. CÁLCULOS 100% DINÁMICOS AL VUELO
+    # Extraemos la realidad de los datos en microsegundos
+    total_delitos = int(df['Total_Anual'].sum()) if 'Total_Anual' in df.columns else len(df)
+    total_municipios = df['Municipio'].nunique()
+    # Buscamos el estado con más volumen
+    estado_top = df.groupby('Entidad')['Total_Anual'].sum().idxmax()
+    # Buscamos la familia de delitos con más volumen
+    delito_top = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().idxmax()
+
+    # 2. KPIs REALES (Nada de números inventados o "harcodeados")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Carpetas de Investigación", f"{total_delitos:,.0f}") 
+    col2.metric("Municipios Analizados", f"{total_municipios:,}")
+    col3.metric("Foco Nacional (Delito)", delito_top)
+    col4.metric("Entidad con Mayor Volumen", estado_top)
+    
+    st.divider()
+
+    # 3. GUÍA OPERATIVA (Sustituye al texto genérico de IA)
+    st.subheader("Guía Operativa del Sistema")
+    st.markdown("Seleccione un módulo en el menú lateral para iniciar la extracción de inteligencia:")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.info("**📈 Análisis Exploratorio (EDA)**\n\nRadiografía general del país. Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
+    with c2:
+        st.warning("**🤖 Clustering (K-Means)**\n\nInteligencia Artificial para encontrar 'municipios gemelos' y descubrir perfiles criminales por especialidad.")
+    with c3:
+        st.error("**🎯 Patrones (Ley de Pareto)**\n\nAplicación de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c4, c5, c6 = st.columns(3)
+    with c4:
+        st.success("**📊 Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el volumen de población altera el tipo de crimen cometido.")
+    with c5:
+        st.write("**🔍 Explorador POO**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
+    with c6:
+        st.empty() # Espacio en blanco para balancear visualmente la cuadrícula
+
     st.markdown("Plataforma de inteligencia criminal basada en datos del SESNSP.")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -59,6 +101,7 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
 
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("Análisis Exploratorio de Datos (EDA)")
+    st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
     
     reporte = generar_reporte_eda(df)
     
@@ -68,34 +111,34 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
 
     st.subheader("Distribución de la Criminalidad")
     st.plotly_chart(reporte["graficas"]["histograma"], use_container_width=True)
-    st.info(" La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
+    st.info("**Interpretación:** La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
     st.divider()
 
     st.subheader("Municipios Atípicos")
     st.plotly_chart(reporte["graficas"]["boxplot"], use_container_width=True)
-    st.info(" La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
+    st.info("**Interpretación:** La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
     st.divider()
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Bienes Jurídicos Más Afectados")
         st.plotly_chart(reporte["graficas"]["bienes"], use_container_width=True)
-        st.info(" Los delitos patrimoniales representan la principal carga criminal observada en el país.")
+        st.info("**Interpretación:** Los delitos patrimoniales representan la principal carga criminal observada en el país.")
     with col2:
         st.subheader("Municipios de Mayor Riesgo")
         st.plotly_chart(reporte["graficas"]["municipios"], use_container_width=True)
-        st.info(" Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
+        st.info("**Interpretación:** Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
     st.divider()
 
     col3, col4 = st.columns(2)
     with col3:
         st.subheader("Población vs Criminalidad")
         st.plotly_chart(reporte["graficas"]["scatter"], use_container_width=True)
-        st.info(" No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
+        st.info("**Interpretación:** No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
     with col4:
         st.subheader("Concentración Criminal")
         st.plotly_chart(reporte["graficas"]["lorenz"], use_container_width=True)
-        st.info(" Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
+        st.info("**Interpretación:** Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
 
 
 def mostrar_clustering(df: pd.DataFrame):
@@ -223,13 +266,13 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
 
 
 def mostrar_tabla_datos(df: pd.DataFrame):
-    st.title("Explorador de Inteligencia (Uso de POO)")
+    st.title("Explorador de Inteligencia (Motor POO)")
     
     # Hardcode a 100k para la muestra para no tronar el navegador.
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
-        st.caption(f"Operando sobre muestra representativa de {TAMANO_MUESTRA:,} registros.")
+        st.caption(f"Aviso Metodológico: Operando sobre muestra representativa de {TAMANO_MUESTRA:,} registros.")
     else:
         df_muestra = df
 
@@ -264,7 +307,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
     
-    st.subheader("Resumen Global")
+    st.subheader("Resumen Ejecutivo Global")
     
     conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
     lista_meses = []
@@ -320,10 +363,12 @@ def mostrar_tabla_datos(df: pd.DataFrame):
 def mostrar_analisis_demografico(df: pd.DataFrame):
     st.title("Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza estadísticamente si el entorno dicta el tipo de crimen.")
-        
+    
+    st.warning("Aviso Académico: La dependencia estadística encontrada no implica causalidad directa, sino una fuerte correlación asimétrica.")
+    
     resultado = calcular_dependencia_demografica(df)
     
-    st.subheader("1. Resultados de aplicar CHI2")
+    st.subheader("1. Diagnóstico Ejecutivo")
     
     col1, col2 = st.columns([1, 1])
     
@@ -335,8 +380,8 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
         p_str = "< 0.001" if p_val < 0.001 else f"{p_val:.4f}"
         
         if resultado['diagnostico']['existe_relacion']:
-            st.success(f" Sí existe una relación estadística. El tipo de entorno modifica el perfil criminal.")
-            st.markdown(f"**Significancia (P-Valor):** {p_str} *(Como es menor a 0.05, podemos decir que existe evidencia estadística suficiente para rechazar H₀.)*.")
+            st.success(f"**Comprobado:** Sí existe una relación estadística. El tipo de entorno modifica el perfil criminal.")
+            st.markdown(f"**Significancia (P-Valor):** {p_str} *(Como es menor a 0.05, el hallazgo es matemáticamente real, no es producto de la casualidad)*.")
         else:
             st.error(f"**Sin Relación:** El entorno no dicta el tipo de crimen (P-Valor: {p_str}).")
             
@@ -371,7 +416,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     
     st.divider()
     
-    st.subheader("2. Perfil Criminal por Zona")
+    st.subheader("2. Perfil Criminal por Zona (Mapa de Calor %)")
     
     df_porcentajes = resultado['perfil_criminal_porcentajes']
     
