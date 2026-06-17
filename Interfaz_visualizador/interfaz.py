@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from collections import Counter
 import plotly.express as px
+import plotly.graph_objects as go # <-- NUEVA LIBRERÍA PARA EL TERMÓMETRO
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
@@ -53,7 +54,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     resultado_pareto = calcular_pareto_municipios(df)
     df_pareto = resultado_pareto["datos_grafica"]
     
-    # 2. STORYTELLING: Mostramos la conclusión antes que la gráfica
+    # 2. STORYTELLING: Mostramos la conclusión
     st.subheader("La Historia del 80/20 en el Crimen Nacional")
     kpi1, kpi2, kpi3 = st.columns(3)
     kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
@@ -199,49 +200,67 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.title("⚖️ Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza científicamente si el tamaño de la ciudad dicta el tipo de crimen que sufre.")
     
-    st.info("Procesando matriz condicional y residuos estandarizados...")
+    st.info("Procesando matriz condicional y estadísticos de Cramér...")
     resultado = calcular_dependencia_demografica(df)
     
     st.subheader("1. Diagnóstico Ejecutivo")
-    col1, col2 = st.columns(2)
     
-    if resultado['diagnostico']['existe_relacion']:
-        col1.success("✅ **Comprobado:** Sí existe una relación estadística entre el entorno y el delito.")
-    else:
-        col1.error("❌ **Sin Relación:** El entorno no dicta el crimen.")
+    # Dividimos en 2 columnas: El veredicto y el Termómetro
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("<br><br>", unsafe_allow_html=True) # Espaciado
+        if resultado['diagnostico']['existe_relacion']:
+            st.success("✅ **Comprobado:** Sí existe una relación estadística. El tipo de entorno (Rural/Urbano) modifica significativamente el perfil criminal.")
+        else:
+            st.error("❌ **Sin Relación:** El entorno no dicta el tipo de crimen.")
+            
+        st.markdown(f"**Interpretación:** {resultado['diagnostico']['fuerza_relacion']}")
         
-    col2.metric("Fuerza de la Relación (V de Cramér)", 
-                resultado['diagnostico']['fuerza_relacion'], 
-                f"Score: {resultado['diagnostico']['valor_cramer']}")
+    with col2:
+        # --- TU IDEA: El Termómetro de la V de Cramér ---
+        valor_cramer = resultado['diagnostico']['valor_cramer']
+        
+        fig_gauge = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = valor_cramer,
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': "Fuerza de Relación (V de Cramér)"},
+            gauge = {
+                'axis': {'range': [0, 1]},
+                'bar': {'color': "rgba(255, 255, 255, 0)"}, # Barra transparente para que el puntero resalte
+                'steps' : [
+                    {'range': [0, 0.1], 'color': "#a8e6cf", 'name': 'Débil'},      # Verde pastel
+                    {'range': [0.1, 0.3], 'color': "#ffd3b6", 'name': 'Moderada'}, # Naranja pastel
+                    {'range': [0.3, 1.0], 'color': "#ff8b94", 'name': 'Fuerte'}    # Rojo pastel
+                ],
+                'threshold' : {
+                    'line': {'color': "black", 'width': 4},
+                    'thickness': 0.75,
+                    'value': valor_cramer
+                }
+            }
+        ))
+        
+        fig_gauge.update_layout(height=250, margin=dict(l=20, r=20, t=50, b=20))
+        st.plotly_chart(fig_gauge, use_container_width=True)
     
     st.divider()
     
-    st.subheader("2. Focos Rojos Demográficos")
-    st.markdown("Concentraciones de crimen que rompen la normalidad estadística:")
-    for alerta in resultado['top_focos_rojos']:
-        st.error(alerta)
-        
-    st.divider()
-    
-    # --- LA SOLUCIÓN: HEATMAP DE PLOTLY ---
-    st.subheader("3. Perfil Criminal por Zona (Mapa de Calor %)")
+    st.subheader("2. Perfil Criminal por Zona (Mapa de Calor %)")
     st.markdown("Lectura: *Busca los cuadros más rojos. Representan la especialidad criminal de esa zona.*")
     
     df_porcentajes = resultado['perfil_criminal_porcentajes']
     
-    # Creamos el Heatmap usando Plotly Express
     fig = px.imshow(
         df_porcentajes,
-        text_auto='.1f', # Muestra el número adentro del cuadro con 1 decimal
-        aspect="auto",   # Ajusta el tamaño a la pantalla
-        color_continuous_scale='YlOrRd', # Colores: De Amarillo (Yellow) a Rojo (Red)
+        text_auto='.1f', 
+        aspect="auto",   
+        color_continuous_scale='YlOrRd', 
         labels=dict(x="Tipo de Asentamiento", y="Bien Jurídico Afectado", color="% de Concentración")
     )
     
-    # Truco visual: Ponemos los nombres de las columnas arriba en vez de abajo
     fig.update_xaxes(side="top") 
-    
-    # Mostramos la gráfica interactiva en Streamlit
     st.plotly_chart(fig, use_container_width=True)
 
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
