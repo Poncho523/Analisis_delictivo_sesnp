@@ -25,14 +25,13 @@ def calcular_dependencia_demografica(df: pd.DataFrame) -> dict:
         aggfunc='sum'
     ).fillna(0)
     
-    # Matemática Cruda (
+    # Matemática Cruda 
     chi2, p_value, _, esperados = chi2_contingency(tabla_observada)
     n_total = tabla_observada.sum().sum() 
     min_dim = min(tabla_observada.shape[0] - 1, tabla_observada.shape[1] - 1)
     
     v_cramer = np.sqrt(chi2 / (n_total * min_dim))
     residuos = (tabla_observada - esperados) / np.sqrt(esperados)
-    
     
     # V de Cramér
     if v_cramer < 0.1:
@@ -60,7 +59,8 @@ def calcular_dependencia_demografica(df: pd.DataFrame) -> dict:
         "diagnostico": {
             "existe_relacion": p_value < 0.05,
             "fuerza_relacion": fuerza_texto,
-            "valor_cramer": round(v_cramer, 4)
+            "valor_cramer": round(v_cramer, 4),
+            "p_value": p_value # <--- NUEVO: EXPORTAMOS EL P-VALOR A LA INTERFAZ
         },
         "top_focos_rojos": alertas,
         # Devolvemos la probabilidad condicional para graficarla en barras después
@@ -73,7 +73,4 @@ if __name__ == "__main__":
     
     print(f"¿El tipo de ciudad afecta al crimen?: {'Sí' if resultado['diagnostico']['existe_relacion'] else 'No'}")
     print(f"Fuerza de esta relación: {resultado['diagnostico']['fuerza_relacion']}")
-    
-    print("\n=== PRINCIPALES FOCOS ROJOS DEMOGRÁFICOS ===")
-    for alerta in resultado['top_focos_rojos']:
-        print(alerta)
+    print(f"P-Valor: {resultado['diagnostico']['p_value']}")
