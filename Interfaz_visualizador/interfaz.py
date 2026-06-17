@@ -4,6 +4,7 @@ import numpy as np
 import sys
 from pathlib import Path
 from collections import Counter
+import plotly.express as px # <-- NUEVA LIBRERÍA PARA EL PASTEL
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
@@ -52,7 +53,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     resultado_pareto = calcular_pareto_municipios(df)
     df_pareto = resultado_pareto["datos_grafica"]
     
-    # 2. STORYTELLING: Mostramos la conclusión antes que la gráfica
+    # 2. STORYTELLING: Mostramos la conclusión
     st.subheader("La Historia del 80/20 en el Crimen Nacional")
     kpi1, kpi2, kpi3 = st.columns(3)
     kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
@@ -64,24 +65,36 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     col1, col2 = st.columns([2, 1]) 
     
     with col1:
-        st.subheader("Curva de Concentración Acumulada")
+        st.subheader("Proporción de Territorialidad Criminal")
         
-        # --- SOLUCIÓN DEFINITIVA DE LA GRÁFICA ---
-        # Tomamos los peores 250 municipios para visualizar el cruce claramente
-        df_grafica = df_pareto.head(250).copy()
+        # --- TU IDEA: LA GRÁFICA DE PASTEL ---
+        municipios_peligrosos = resultado_pareto['cantidad_critica']
+        municipios_pacificos = resultado_pareto['total_municipios'] - municipios_peligrosos
         
-        # Creamos la columna numérica para el Eje X explícito
-        df_grafica['Ranking de Gravedad'] = range(1, len(df_grafica) + 1)
+        # Creamos una tabla pequeña solo para el pastel
+        datos_pastel = pd.DataFrame({
+            "Categoría": ["Focos Rojos (Acumulan el 80% del crimen)", "Resto del País (Acumulan 20% del crimen)"],
+            "Cantidad de Municipios": [municipios_peligrosos, municipios_pacificos]
+        })
         
-        # Creamos el umbral recto para el Eje Y
-        df_grafica['Umbral 80% (Pareto)'] = 80.0
-        
-        # Le decimos a Streamlit EXACTAMENTE qué usar para evitar que use texto (Modo Estricto)
-        st.line_chart(
-            data=df_grafica,
-            x='Ranking de Gravedad',
-            y=['Porcentaje_Acumulado', 'Umbral 80% (Pareto)']
+        # Generamos el Pastel Interactivo con Plotly
+        fig = px.pie(
+            datos_pastel, 
+            values='Cantidad de Municipios', 
+            names='Categoría',
+            color='Categoría',
+            color_discrete_map={
+                "Focos Rojos (Acumulan el 80% del crimen)": "#ff4b4b", # Rojo alerta
+                "Resto del País (Acumulan 20% del crimen)": "#1f77b4"  # Azul pacífico
+            },
+            hole=0.4 # Esto lo hace ver como una Dona (más moderno y elegante)
         )
+        
+        # Actualizamos el diseño para que el texto se vea por fuera
+        fig.update_traces(textposition='outside', textinfo='percent+label')
+        
+        # Mostramos la gráfica en Streamlit
+        st.plotly_chart(fig, use_container_width=True)
         
     with col2:
         st.subheader("Top Focos Rojos Absolutos")

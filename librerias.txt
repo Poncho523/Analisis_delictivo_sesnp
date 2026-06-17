@@ -1,2 +1,3 @@
 pandas
 numpy
+#la de sis la de streamlit la de ploty
