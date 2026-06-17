@@ -16,26 +16,26 @@ from ETL.carga_data_mart import cargar_data_mart
 def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     """
     Pipeline profesional: Tasas -> Escala -> PCA -> K-Optimo -> K-Means
-    Nota: Recibe directamente un Data Mart pivoteado.
     """
-    # 1. Filtramos municipios muy pequeños para evitar tasas infladas
-    # Usamos 'Poblacion_Total' basado en la estructura de tu nuevo Data Mart
+    # 1. Filtramos municipios muy pequeños
     df_filtrado = df[df['Poblacion_Total'] >= 5000].copy()
     
-    # 2. Separar Metadata de las Características (Features)
+    # 2. Separar Metadata
     columnas_base = ['Cve_Municipio', 'Municipio', 'Poblacion_Total']
-    # Por si el Data Mart llega a tener la Entidad
     if 'Entidad' in df_filtrado.columns:
         columnas_base.append('Entidad')
         
-    # Asumimos que todas las demás columnas son delitos
-    columnas_delitos = df_filtrado.columns.drop(columnas_base)
+    # --- LA SOLUCIÓN AL PROBLEMA ---
+    # Identificamos las columnas que son "Totales" o "Agregados" para que no arruinen el clustering
+    columnas_trampa = ['Tasa_Global_100k', 'Total_Delitos_Absoluto', 'Robos_Totales', 'Total']
+    
+    # Nos quedamos estrictamente con los delitos específicos
+    columnas_delitos = [col for col in df_filtrado.columns if col not in columnas_base and col not in columnas_trampa]
     
     # 3. CONVERSIÓN A TASAS
     for delito in columnas_delitos:
         df_filtrado[delito] = (df_filtrado[delito] / df_filtrado['Poblacion_Total']) * 100000
 
-    # Guardamos los IDs por un lado y los números crudos por otro
     df_identificadores = df_filtrado[columnas_base].copy()
     X_numerico = df_filtrado[columnas_delitos]
 
@@ -62,14 +62,13 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
         score = silhouette_score(X_pca, etiquetas_temp)
         scores_silueta.append(score)
         
-        # Guardamos el K con la mejor silueta (matemáticamente el más puro)
         if score > mejor_score:
             mejor_score = score
             mejor_k = k
             
     df_evaluacion = pd.DataFrame({'K': rango_k, 'Inercia': inercias, 'Silhouette': scores_silueta})
 
-    # 7. K-MEANS DEFINITIVO (Con el K que el usuario pidió en el slider)
+    # 7. K-MEANS DEFINITIVO
     kmeans_final = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
     etiquetas_clusters = kmeans_final.fit_predict(X_pca)
     score_final = silhouette_score(X_pca, etiquetas_clusters)
@@ -78,26 +77,41 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     df_final = df_identificadores.copy()
     df_final['Cluster'] = etiquetas_clusters
     
-    # 2D PCA para visualización frontal
     df_final['PCA_1'] = X_pca[:, 0]
     df_final['PCA_2'] = X_pca[:, 1]
 
-    # 9. CONTEXTO DEL PERFIL (Población y N)
+    # 9. CONTEXTO DEL PERFIL Y ETIQUETADO INTELIGENTE (Z-SCORES)
     resumen_clusters = df_final.groupby('Cluster').agg(
         Total_Municipios=('Cve_Municipio', 'count'),
         Poblacion_Promedio=('Poblacion_Total', 'mean')
     ).reset_index()
 
-    # Creación de etiquetas semánticas ricas
+    # Calculamos la especialidad criminal de cada cluster usando estadística (Z-Score)
+    centroides_crudos = df_final.groupby('Cluster')[columnas_delitos].mean()
+    media_global = X_numerico.mean()
+    std_global = X_numerico.std()
+    
+    # Z-Score: Comparamos el cluster contra el promedio nacional
+    z_scores = (centroides_crudos - media_global) / (std_global + 1e-9)
+    especialidad_cluster = z_scores.idxmax(axis=1)
+
     def crear_etiqueta(fila):
+        # int() arregla el error de Numpy que tuvimos antes
         cluster = int(fila['Cluster'])
         n = int(fila['Total_Municipios'])
-        pob = fila['Poblacion_Promedio'] / 1000 # En miles
-        return f"Perfil {chr(65 + cluster)} (N={n} | Pob. Media: {pob:.0f}k)"
+        pob = fila['Poblacion_Promedio'] / 1000 
+        
+        delito_destacado = especialidad_cluster[cluster]
+        delito_limpio = str(delito_destacado).replace('_', ' ').title()
+        
+        # Si el Z-Score es negativo, significa que es un municipio súper seguro
+        if z_scores.loc[cluster, delito_destacado] < 0:
+            return f"Perfil Pacifico (N={n} | Pob: {pob:.0f}k)"
+            
+        return f"Foco: {delito_limpio} (N={n} | Pob: {pob:.0f}k)"
 
     resumen_clusters['Nombre_Cluster'] = resumen_clusters.apply(crear_etiqueta, axis=1)
     
-    # Pegamos los nombres ricos al dataframe final
     df_final = df_final.merge(resumen_clusters[['Cluster', 'Nombre_Cluster']], on='Cluster')
 
     # 10. PERFILES PROMEDIO PARA HEATMAP
