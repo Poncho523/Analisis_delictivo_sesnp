@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from collections import Counter
 import plotly.express as px
-import plotly.graph_objects as go # <-- NUEVA LIBRERÍA PARA EL TERMÓMETRO
+import plotly.graph_objects as go 
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
@@ -17,6 +17,7 @@ from ETL.carga_datos import cargar_datos_incidencia
 from motor_analitico.parapeto_concentracion import calcular_pareto_municipios
 from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 from motor_analitico.chi2 import calcular_dependencia_demografica
+from motor_analitico.estadistica_descriptiva import generar_reporte_eda # <-- IMPORTAMOS EL NUEVO MOTOR EDA
 
 # @st.cache_data Memoriza el resultado de la función para no leer el CSV completo siempre
 @st.cache_data
@@ -45,6 +46,33 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     )
     # st.map renderiza un mapa interactivo
     st.map(mapa_datos, zoom=4, use_container_width=True)
+
+# --- NUEVA FUNCIÓN PARA MOSTRAR EL EDA ---
+def mostrar_analisis_exploratorio(df: pd.DataFrame):
+    st.title("📊 Análisis Exploratorio de Datos (EDA)")
+    st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
+    
+    st.info("Generando estadísticos y renderizando lienzo de Matplotlib...")
+    
+    # Llamamos a la función que devuelve el diccionario
+    reporte = generar_reporte_eda(df)
+    
+    # 1. Mostrar la tabla de estadísticas descriptivas
+    st.subheader("Estadística Descriptiva Municipal")
+    st.dataframe(reporte["estadisticas"], use_container_width=True)
+    
+    st.markdown("""
+    **Interpretación Criminológica:**
+    * **Media vs Mediana:** Si la media es mucho mayor a la mediana, hay concentración extrema en pocos municipios.
+    * **Asimetría / Curtosis:** Valores altos confirman valores atípicos severos (outliers).
+    """)
+    
+    st.divider()
+    
+    # 2. Mostrar la súper gráfica de Matplotlib
+    st.subheader("Diagnóstico Visual (Grid)")
+    # st.pyplot() es el puente perfecto para pintar Matplotlib en Streamlit
+    st.pyplot(reporte["figura_matplotlib"])
 
 def mostrar_patrones_delictivos(df: pd.DataFrame):
     st.title("Análisis de Patrones (Ley de Pareto)")
@@ -205,11 +233,10 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     
     st.subheader("1. Diagnóstico Ejecutivo")
     
-    # Dividimos en 2 columnas: El veredicto y el Termómetro
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.markdown("<br><br>", unsafe_allow_html=True) # Espaciado
+        st.markdown("<br><br>", unsafe_allow_html=True) 
         if resultado['diagnostico']['existe_relacion']:
             st.success("✅ **Comprobado:** Sí existe una relación estadística. El tipo de entorno (Rural/Urbano) modifica significativamente el perfil criminal.")
         else:
@@ -218,7 +245,6 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
         st.markdown(f"**Interpretación:** {resultado['diagnostico']['fuerza_relacion']}")
         
     with col2:
-        # --- TU IDEA: El Termómetro de la V de Cramér ---
         valor_cramer = resultado['diagnostico']['valor_cramer']
         
         fig_gauge = go.Figure(go.Indicator(
@@ -228,11 +254,11 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
             title = {'text': "Fuerza de Relación (V de Cramér)"},
             gauge = {
                 'axis': {'range': [0, 1]},
-                'bar': {'color': "rgba(255, 255, 255, 0)"}, # Barra transparente para que el puntero resalte
+                'bar': {'color': "rgba(255, 255, 255, 0)"}, 
                 'steps' : [
-                    {'range': [0, 0.1], 'color': "#a8e6cf", 'name': 'Débil'},      # Verde pastel
-                    {'range': [0.1, 0.3], 'color': "#ffd3b6", 'name': 'Moderada'}, # Naranja pastel
-                    {'range': [0.3, 1.0], 'color': "#ff8b94", 'name': 'Fuerte'}    # Rojo pastel
+                    {'range': [0, 0.1], 'color': "#a8e6cf", 'name': 'Débil'},      
+                    {'range': [0.1, 0.3], 'color': "#ffd3b6", 'name': 'Moderada'}, 
+                    {'range': [0.3, 1.0], 'color': "#ff8b94", 'name': 'Fuerte'}    
                 ],
                 'threshold' : {
                     'line': {'color': "black", 'width': 4},
@@ -266,13 +292,16 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
 st.sidebar.title("Menu")
 
+# --- AGREGAMOS EL EDA AL MENÚ ---
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
-    ("Inicio", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
+    ("Inicio", "Análisis Exploratorio (EDA)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
 )
 
 if opcion == "Inicio":
     mostrar_pantalla_inicio(dataset_global)
+elif opcion == "Análisis Exploratorio (EDA)":
+    mostrar_analisis_exploratorio(dataset_global)
 elif opcion == "Consultar Datos":
     mostrar_tabla_datos(dataset_global)
 elif opcion == "Patrones y Pareto":
