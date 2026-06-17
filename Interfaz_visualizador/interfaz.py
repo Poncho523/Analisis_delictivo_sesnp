@@ -218,10 +218,13 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     df_pareto = resultado_pareto["datos_grafica"]
     
     st.subheader("La Historia del 80/20 en el Crimen Nacional")
-    kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
-    kpi2.metric("Municipios que concentran el 80% del crimen", f"{resultado_pareto['cantidad_critica']:,}", delta_color="inverse")
-    kpi3.metric("% del Territorio Nacional Afectado", f"{resultado_pareto['porcentaje_territorio']:.1f}%")
+    
+    # Agregamos 4 columnas en lugar de 3 para meter el Total de Delitos
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("Total de Municipios", f"{resultado_pareto['total_municipios']:,}")
+    kpi2.metric("Focos Rojos (80%)", f"{resultado_pareto['cantidad_critica']:,}", delta_color="inverse")
+    kpi3.metric("% del Territorio", f"{resultado_pareto['porcentaje_territorio']:.1f}%")
+    kpi4.metric("Total de Delitos (100%)", f"{resultado_pareto['total_delitos_nacional']:,.0f}")
     
     st.divider()
     
@@ -231,12 +234,8 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         st.subheader("Curva de Concentración Acumulada")
         
         df_grafica = df_pareto.copy()
-        # IMPORTANTISIMO: Sobrescribir el index con un ranking (1, 2, 3...) para que Streamlit
-        # no intente ordenar la gráfica alfabéticamente por nombre del municipio. Eso la destruía.
         df_grafica['Ranking de Gravedad'] = range(1, len(df_grafica) + 1)
         
-        # Antes tenía una gráfica de pastel aquí, pero el experto sugirió usar la curva clásica.
-        # px.line es mejor que st.line_chart porque me deja meter la línea roja del threshold fácil.
         fig_pareto = px.line(
             df_grafica, x='Ranking de Gravedad', y='Porcentaje_Acumulado',
             labels={"Porcentaje_Acumulado": "% de Delitos Acumulados", "Ranking de Gravedad": "Municipios (De Peor a Mejor)"}
@@ -246,12 +245,15 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         
     with col2:
         st.subheader("Top Focos Rojos Absolutos")
-        columnas_ver = ['Municipio', 'Entidad', 'Tasa_Anual_100k']
+        # Aquí pedimos explícitamente el Total en lugar de la Tasa
+        columnas_ver = ['Municipio', 'Entidad', 'Total_Anual']
         df_mostrar = df_pareto[columnas_ver].head(10).copy()
-        df_mostrar['Tasa_Anual_100k'] = df_mostrar['Tasa_Anual_100k'].apply(lambda x: f"{x:,.2f}")
+        
+        # Le ponemos comas a los números grandes para que se vean bien
+        df_mostrar['Total_Anual'] = df_mostrar['Total_Anual'].apply(lambda x: f"{x:,.0f}")
         st.dataframe(df_mostrar, hide_index=True)
 
-
+        
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("Explorador de Inteligencia (Motor POO)")
     
