@@ -17,7 +17,8 @@ from ETL.carga_datos import cargar_datos_incidencia
 from motor_analitico.parapeto_concentracion import calcular_pareto_municipios
 from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 from motor_analitico.chi2 import calcular_dependencia_demografica
-from motor_analitico.estadistica_descriptiva import generar_reporte_eda # <-- IMPORTAMOS EL NUEVO MOTOR EDA
+from motor_analitico.estadistica_descriptiva import generar_reporte_eda 
+from motor_analitico.kmedias import ejecutar_pipeline_kmeans # <-- IMPORTAMOS EL NUEVO MOTOR K-MEANS
 
 # @st.cache_data Memoriza el resultado de la función para no leer el CSV completo siempre
 @st.cache_data
@@ -47,17 +48,14 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     # st.map renderiza un mapa interactivo
     st.map(mapa_datos, zoom=4, use_container_width=True)
 
-# --- NUEVA FUNCIÓN PARA MOSTRAR EL EDA ---
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("📊 Análisis Exploratorio de Datos (EDA)")
     st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
     
     st.info("Generando estadísticos y renderizando lienzo de Matplotlib...")
     
-    # Llamamos a la función que devuelve el diccionario
     reporte = generar_reporte_eda(df)
     
-    # 1. Mostrar la tabla de estadísticas descriptivas
     st.subheader("Estadística Descriptiva Municipal")
     st.dataframe(reporte["estadisticas"], use_container_width=True)
     
@@ -69,20 +67,90 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
     
     st.divider()
     
-    # 2. Mostrar la súper gráfica de Matplotlib
     st.subheader("Diagnóstico Visual (Grid)")
-    # st.pyplot() es el puente perfecto para pintar Matplotlib en Streamlit
     st.pyplot(reporte["figura_matplotlib"])
+
+# --- NUEVO MÓDULO: CLUSTERING K-MEANS ---
+def mostrar_clustering(df: pd.DataFrame):
+    st.title("🤖 Perfilamiento Criminal Avanzado (K-Means)")
+    st.markdown("Segmentación de municipios basada en la similitud de sus tasas delictivas mediante Inteligencia Artificial.")
+    
+    # INTERACTIVIDAD: El usuario elige cuántos clusters quiere
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ Parámetros del Modelo")
+    k_elegido = st.sidebar.slider("Número de Perfiles (K)", min_value=2, max_value=8, value=4)
+    
+    st.info(f"Entrenando modelo K-Means con {k_elegido} clusters. Reduciendo dimensionalidad con PCA...")
+    
+    # Ejecutamos el pipeline
+    resultado = ejecutar_pipeline_kmeans(df, n_clusters=k_elegido)
+    
+    # --- SECCIÓN 1: MÉTRICAS DE CALIDAD ---
+    st.subheader("1. Diagnóstico del Modelo")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Varianza Retenida (PCA)", f"{resultado['metricas']['varianza_pca']:.1f}%")
+    col2.metric("Súper-Componentes", f"{resultado['metricas']['dimensiones_pca']}")
+    col3.metric("Silhouette Score (Calidad)", f"{resultado['metricas']['silhouette']:.3f}", "Rango ideal > 0.5")
+    
+    st.divider()
+    
+    # --- SECCIÓN 2: VISUALIZACIÓN 3D Y CODO ---
+    col_g1, col_g2 = st.columns([2, 1])
+    
+    with col_g1:
+        st.subheader("2. Universo de Municipios (PCA 3D)")
+        st.markdown("Cada punto es un municipio. Los colores representan los perfiles criminales descubiertos.")
+        
+        # Gráfica 3D interactiva
+        df_plot = resultado['df_clusters']
+        if 'PCA_3' in df_plot.columns:
+            fig_3d = px.scatter_3d(
+                df_plot, x='PCA_1', y='PCA_2', z='PCA_3',
+                color='Nombre_Cluster',
+                hover_name='Municipio', hover_data=['Entidad'],
+                opacity=0.7,
+                color_discrete_sequence=px.colors.qualitative.Bold
+            )
+            fig_3d.update_layout(margin=dict(l=0, r=0, b=0, t=0), height=500)
+            st.plotly_chart(fig_3d, use_container_width=True)
+        else:
+            st.warning("El PCA retuvo menos de 3 componentes. No se puede graficar en 3D.")
+            
+    with col_g2:
+        st.subheader("Curva del Codo")
+        st.markdown("Ayuda a validar si elegiste la K correcta (busca la 'rodilla').")
+        df_codo = resultado['datos_codo'].set_index('K (Número de Clusters)')
+        st.line_chart(df_codo)
+        
+    st.divider()
+    
+    # --- SECCIÓN 3: INTERPRETACIÓN DE LOS PERFILES (HEATMAP) ---
+    st.subheader("3. ADN Criminal de los Perfiles (Top 10 Delitos)")
+    st.markdown("Tasas promedio por cada 100k habitantes. **Busca las zonas rojas para entender la especialidad de cada grupo.**")
+    
+    # Extraemos los perfiles, los rotamos (T) para que los delitos sean las filas y filtramos el top 10
+    df_perfiles = resultado['perfiles_promedio'].T
+    # Sumamos las tasas para descubrir cuáles son los delitos más frecuentes en general
+    top_delitos = df_perfiles.sum(axis=1).sort_values(ascending=False).head(10).index
+    df_perfiles_top = df_perfiles.loc[top_delitos]
+    
+    fig_heat = px.imshow(
+        df_perfiles_top,
+        text_auto='.1f', 
+        aspect="auto",   
+        color_continuous_scale='Reds', 
+        labels=dict(x="Perfil Criminal (Cluster)", y="Tipo de Delito", color="Tasa Promedio")
+    )
+    fig_heat.update_xaxes(side="top") 
+    st.plotly_chart(fig_heat, use_container_width=True)
 
 def mostrar_patrones_delictivos(df: pd.DataFrame):
     st.title("Análisis de Patrones (Ley de Pareto)")
     st.info("Ejecutando motor analítico en tiempo real...")
     
-    # 1. RECIBIMOS EL PAQUETE COMPLETO DE INTELIGENCIA
     resultado_pareto = calcular_pareto_municipios(df)
     df_pareto = resultado_pareto["datos_grafica"]
     
-    # 2. STORYTELLING: Mostramos la conclusión
     st.subheader("La Historia del 80/20 en el Crimen Nacional")
     kpi1, kpi2, kpi3 = st.columns(3)
     kpi1.metric("Total de Municipios Evaluados", f"{resultado_pareto['total_municipios']:,}")
@@ -292,16 +360,18 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
 st.sidebar.title("Menu")
 
-# --- AGREGAMOS EL EDA AL MENÚ ---
+# --- AGREGAMOS EL MÓDULO DE CLUSTERING AL MENÚ ---
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
-    ("Inicio", "Análisis Exploratorio (EDA)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
+    ("Inicio", "Análisis Exploratorio (EDA)", "Clustering (K-Means)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
 )
 
 if opcion == "Inicio":
     mostrar_pantalla_inicio(dataset_global)
 elif opcion == "Análisis Exploratorio (EDA)":
     mostrar_analisis_exploratorio(dataset_global)
+elif opcion == "Clustering (K-Means)":
+    mostrar_clustering(dataset_global)
 elif opcion == "Consultar Datos":
     mostrar_tabla_datos(dataset_global)
 elif opcion == "Patrones y Pareto":
