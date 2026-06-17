@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go 
 
 # layout="wide" hace que la app ocupe toda la pantalla y no solo el centro.
-st.set_page_config(page_title="Gestión de Incidentes SESNSP", page_icon="🚓", layout="wide")
+st.set_page_config(page_title="Gestión de Incidentes SESNSP", layout="wide")
 
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
@@ -18,9 +18,8 @@ from motor_analitico.parapeto_concentracion import calcular_pareto_municipios
 from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 from motor_analitico.chi2 import calcular_dependencia_demografica
 from motor_analitico.estadistica_descriptiva import generar_reporte_eda 
-from motor_analitico.kmedias import ejecutar_pipeline_kmeans # <-- IMPORTAMOS EL NUEVO MOTOR K-MEANS
+from motor_analitico.kmedias import ejecutar_pipeline_kmeans 
 
-# @st.cache_data Memoriza el resultado de la función para no leer el CSV completo siempre
 @st.cache_data
 def obtener_datos_cacheados():
     return cargar_datos_incidencia()
@@ -49,97 +48,92 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     st.map(mapa_datos, zoom=4, use_container_width=True)
 
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
-    st.title("📊 Análisis Exploratorio de Datos (EDA)")
+    st.title("Análisis Exploratorio de Datos (EDA)")
     st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
-    
     st.info("Generando estadísticos y renderizando lienzo de Matplotlib...")
     
     reporte = generar_reporte_eda(df)
     
     st.subheader("Estadística Descriptiva Municipal")
     st.dataframe(reporte["estadisticas"], use_container_width=True)
-    
-    st.markdown("""
-    **Interpretación Criminológica:**
-    * **Media vs Mediana:** Si la media es mucho mayor a la mediana, hay concentración extrema en pocos municipios.
-    * **Asimetría / Curtosis:** Valores altos confirman valores atípicos severos (outliers).
-    """)
-    
     st.divider()
-    
     st.subheader("Diagnóstico Visual (Grid)")
     st.pyplot(reporte["figura_matplotlib"])
 
-# --- NUEVO MÓDULO: CLUSTERING K-MEANS ---
+# --- MÓDULO CLUSTERING MEJORADO ---
 def mostrar_clustering(df: pd.DataFrame):
-    st.title("🤖 Perfilamiento Criminal Avanzado (K-Means)")
+    st.title("Perfilamiento Criminal Avanzado (K-Means)")
     st.markdown("Segmentación de municipios basada en la similitud de sus tasas delictivas mediante Inteligencia Artificial.")
     
-    # INTERACTIVIDAD: El usuario elige cuántos clusters quiere
+    # Defensa Académica Integrada
+    with st.expander("Justificación Metodológica: ¿Por qué K-Means y no DBSCAN?"):
+        st.write("""
+        **Objetivo:** Descubrir tipologías criminales generales (Patrones base).
+        * **K-Means** permite segmentar todos los municipios en grupos interpretables mediante centroides, revelando el perfil criminal dominante (ej. zonas de robo vs zonas de violencia).
+        * **DBSCAN** se utiliza en fases posteriores exclusivamente para la detección de *outliers* (municipios atípicos que no pertenecen a ningún patrón lógico).
+        """)
+
+    # 1. EVALUACIÓN CIENTÍFICA
+    resultado_previo = ejecutar_pipeline_kmeans(df, n_clusters=4)
+    mejor_k = resultado_previo['metricas']['mejor_k_matematico']
+    
     st.sidebar.markdown("---")
-    st.sidebar.subheader("⚙️ Parámetros del Modelo")
-    k_elegido = st.sidebar.slider("Número de Perfiles (K)", min_value=2, max_value=8, value=4)
+    st.sidebar.subheader("Parámetros del Modelo")
     
-    st.info(f"Entrenando modelo K-Means con {k_elegido} clusters. Reduciendo dimensionalidad con PCA...")
+    st.sidebar.info(f"Recomendación Algorítmica: El método de Silhouette sugiere usar K = {mejor_k} para obtener grupos más puros.")
+    k_elegido = st.sidebar.slider("Forzar Número de Perfiles (K)", min_value=2, max_value=8, value=int(mejor_k))
     
-    # Ejecutamos el pipeline
     resultado = ejecutar_pipeline_kmeans(df, n_clusters=k_elegido)
     
-    # --- SECCIÓN 1: MÉTRICAS DE CALIDAD ---
     st.subheader("1. Diagnóstico del Modelo")
     col1, col2, col3 = st.columns(3)
     col1.metric("Varianza Retenida (PCA)", f"{resultado['metricas']['varianza_pca']:.1f}%")
-    col2.metric("Súper-Componentes", f"{resultado['metricas']['dimensiones_pca']}")
-    col3.metric("Silhouette Score (Calidad)", f"{resultado['metricas']['silhouette']:.3f}", "Rango ideal > 0.5")
+    col2.metric("Componentes Principales (2D)", "2 Ejes")
+    col3.metric(f"Silhouette Score (K={k_elegido})", f"{resultado['metricas']['silhouette_actual']:.3f}")
     
     st.divider()
     
-    # --- SECCIÓN 2: VISUALIZACIÓN 3D Y CODO ---
+    # 2. VISUALIZACIÓN 2D y CURVA
     col_g1, col_g2 = st.columns([2, 1])
     
     with col_g1:
-        st.subheader("2. Universo de Municipios (PCA 3D)")
-        st.markdown("Cada punto es un municipio. Los colores representan los perfiles criminales descubiertos.")
+        st.subheader("2. Mapa de Similitud Criminal (PCA 2D)")
+        st.markdown("Cada punto es un municipio. Los más cercanos sufren problemas criminales idénticos.")
         
-        # Gráfica 3D interactiva
         df_plot = resultado['df_clusters']
-        if 'PCA_3' in df_plot.columns:
-            fig_3d = px.scatter_3d(
-                df_plot, x='PCA_1', y='PCA_2', z='PCA_3',
-                color='Nombre_Cluster',
-                hover_name='Municipio', hover_data=['Entidad'],
-                opacity=0.7,
-                color_discrete_sequence=px.colors.qualitative.Bold
-            )
-            fig_3d.update_layout(margin=dict(l=0, r=0, b=0, t=0), height=500)
-            st.plotly_chart(fig_3d, use_container_width=True)
-        else:
-            st.warning("El PCA retuvo menos de 3 componentes. No se puede graficar en 3D.")
+        fig_2d = px.scatter(
+            df_plot, x='PCA_1', y='PCA_2',
+            color='Nombre_Cluster',
+            hover_name='Municipio', hover_data=['Entidad', 'POB_TOTAL'],
+            opacity=0.7,
+            color_discrete_sequence=px.colors.qualitative.Bold
+        )
+        fig_2d.update_xaxes(title="Componente Principal 1 (Varianza dominante)", showticklabels=False)
+        fig_2d.update_yaxes(title="Componente Principal 2", showticklabels=False)
+        st.plotly_chart(fig_2d, use_container_width=True)
             
     with col_g2:
-        st.subheader("Curva del Codo")
-        st.markdown("Ayuda a validar si elegiste la K correcta (busca la 'rodilla').")
-        df_codo = resultado['datos_codo'].set_index('K (Número de Clusters)')
-        st.line_chart(df_codo)
+        st.subheader("Validación Matemática")
+        st.markdown("Evaluación de Cohesión Interna (Silhouette)")
+        df_eval = resultado['datos_evaluacion'].set_index('K')
+        st.line_chart(df_eval['Silhouette'], color="#ff4b4b")
         
     st.divider()
     
-    # --- SECCIÓN 3: INTERPRETACIÓN DE LOS PERFILES (HEATMAP) ---
-    st.subheader("3. ADN Criminal de los Perfiles (Top 10 Delitos)")
-    st.markdown("Tasas promedio por cada 100k habitantes. **Busca las zonas rojas para entender la especialidad de cada grupo.**")
+    # 3. CONTEXTO ABSOLUTO EN EL HEATMAP
+    st.subheader("3. ADN Criminal de los Perfiles")
+    st.markdown("Tasas promedio (por 100k hab). Observa el tamaño (N) y la población promedio para entender la escala del problema.")
     
-    # Extraemos los perfiles, los rotamos (T) para que los delitos sean las filas y filtramos el top 10
     df_perfiles = resultado['perfiles_promedio'].T
-    # Sumamos las tasas para descubrir cuáles son los delitos más frecuentes en general
     top_delitos = df_perfiles.sum(axis=1).sort_values(ascending=False).head(10).index
     df_perfiles_top = df_perfiles.loc[top_delitos]
     
     fig_heat = px.imshow(
         df_perfiles_top,
-        text_auto='.1f', 
+        text_auto='.0f', 
         aspect="auto",   
         color_continuous_scale='Reds', 
-        labels=dict(x="Perfil Criminal (Cluster)", y="Tipo de Delito", color="Tasa Promedio")
+        labels=dict(x="Caracterización del Perfil (Con Contexto Demográfico)", y="Tipo de Delito", color="Tasa 100k")
     )
     fig_heat.update_xaxes(side="top") 
     st.plotly_chart(fig_heat, use_container_width=True)
@@ -195,12 +189,12 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         st.dataframe(df_mostrar, hide_index=True)
 
 def mostrar_tabla_datos(df: pd.DataFrame):
-    st.title("🗄️ Explorador de Inteligencia (Motor POO)")
+    st.title("Explorador de Inteligencia (Motor POO)")
     
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
-        st.caption(f"⚠️ **Aviso Metodológico:** Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
+        st.caption(f"Aviso Metodológico: Para garantizar el rendimiento, el motor POO está operando sobre una muestra estadísticamente representativa de {TAMANO_MUESTRA:,} registros (Nivel de Confianza: 99%).")
     else:
         df_muestra = df
 
@@ -265,7 +259,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     st.markdown("### Detalles de Casos de Estudio (Top 50 visualizados)")
     
     for registro in lista_registros_poo[:50]:
-        titulo_caja = f"📍 {registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
+        titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
         with st.expander(titulo_caja):
             c1, c2, c3 = st.columns(3)
@@ -279,7 +273,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c2.write(f"**Asentamiento:** {registro.municipio.clasificar_asentamiento(df_filtrado.iloc[0]['POB_TOTAL'])}")
             c2.write(f"**Tasa 100k:** {registro.tasaAnual100k:.2f}")
             riesgo = registro.categorizar_nivel_riesgo(umbral_alto=50.0, umbral_medio=20.0)
-            c2.write(f"**Nivel de Riesgo:** {riesgo} 🚦")
+            c2.write(f"**Nivel de Riesgo:** {riesgo}")
             
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
@@ -293,7 +287,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             c3.write(f"**Patrón:** {registro.determinar_patron_ocurrencia()}")
 
 def mostrar_analisis_demografico(df: pd.DataFrame):
-    st.title("⚖️ Dependencia Demográfica (Chi-Cuadrada)")
+    st.title("Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza científicamente si el tamaño de la ciudad dicta el tipo de crimen que sufre.")
     
     st.info("Procesando matriz condicional y estadísticos de Cramér...")
@@ -306,9 +300,9 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     with col1:
         st.markdown("<br><br>", unsafe_allow_html=True) 
         if resultado['diagnostico']['existe_relacion']:
-            st.success("✅ **Comprobado:** Sí existe una relación estadística. El tipo de entorno (Rural/Urbano) modifica significativamente el perfil criminal.")
+            st.success("**Comprobado:** Sí existe una relación estadística. El tipo de entorno (Rural/Urbano) modifica significativamente el perfil criminal.")
         else:
-            st.error("❌ **Sin Relación:** El entorno no dicta el tipo de crimen.")
+            st.error("**Sin Relación:** El entorno no dicta el tipo de crimen.")
             
         st.markdown(f"**Interpretación:** {resultado['diagnostico']['fuerza_relacion']}")
         
@@ -342,7 +336,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.divider()
     
     st.subheader("2. Perfil Criminal por Zona (Mapa de Calor %)")
-    st.markdown("Lectura: *Busca los cuadros más rojos. Representan la especialidad criminal de esa zona.*")
+    st.markdown("Lectura: Busca los cuadros más rojos. Representan la especialidad criminal de esa zona.")
     
     df_porcentajes = resultado['perfil_criminal_porcentajes']
     
@@ -358,9 +352,8 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.plotly_chart(fig, use_container_width=True)
 
 st.sidebar.image("https://st.depositphotos.com/1000163/2482/i/450/depositphotos_24824379-stock-photo-handcuffs-and-judge-gavel-on.jpg", width=100)
-st.sidebar.title("Menu")
+st.sidebar.title("Menú")
 
-# --- AGREGAMOS EL MÓDULO DE CLUSTERING AL MENÚ ---
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
     ("Inicio", "Análisis Exploratorio (EDA)", "Clustering (K-Means)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
