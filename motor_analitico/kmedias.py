@@ -11,40 +11,44 @@ from sklearn.metrics import silhouette_score
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
-from ETL.carga_datos import cargar_datos_incidencia
+from ETL.carga_data_mart import cargar_data_mart
 
 def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     """
     Pipeline profesional: Tasas -> Escala -> PCA -> K-Optimo -> K-Means
+    Nota: Recibe directamente un Data Mart pivoteado.
     """
-    df_filtrado = df[df['POB_TOTAL'] >= 5000].copy()
+    # 1. Filtramos municipios muy pequeños para evitar tasas infladas
+    # Usamos 'Poblacion_Total' basado en la estructura de tu nuevo Data Mart
+    df_filtrado = df[df['Poblacion_Total'] >= 5000].copy()
     
-    matriz_delitos = df_filtrado.pivot_table(
-        index=['Cve_Municipio', 'Municipio', 'Entidad', 'POB_TOTAL'], 
-        columns='Subtipo_de_delito', 
-        values='Total_Anual', 
-        aggfunc='sum'
-    ).fillna(0).reset_index()
-
-    columnas_delitos = matriz_delitos.columns.drop(['Cve_Municipio', 'Municipio', 'Entidad', 'POB_TOTAL'])
+    # 2. Separar Metadata de las Características (Features)
+    columnas_base = ['Cve_Municipio', 'Municipio', 'Poblacion_Total']
+    # Por si el Data Mart llega a tener la Entidad
+    if 'Entidad' in df_filtrado.columns:
+        columnas_base.append('Entidad')
+        
+    # Asumimos que todas las demás columnas son delitos
+    columnas_delitos = df_filtrado.columns.drop(columnas_base)
     
-    # CONVERSIÓN A TASAS
+    # 3. CONVERSIÓN A TASAS
     for delito in columnas_delitos:
-        matriz_delitos[delito] = (matriz_delitos[delito] / matriz_delitos['POB_TOTAL']) * 100000
+        df_filtrado[delito] = (df_filtrado[delito] / df_filtrado['Poblacion_Total']) * 100000
 
-    df_identificadores = matriz_delitos[['Cve_Municipio', 'Municipio', 'Entidad', 'POB_TOTAL']]
-    X_numerico = matriz_delitos[columnas_delitos]
+    # Guardamos los IDs por un lado y los números crudos por otro
+    df_identificadores = df_filtrado[columnas_base].copy()
+    X_numerico = df_filtrado[columnas_delitos]
 
-    # ESCALADO
+    # 4. ESCALADO
     scaler = StandardScaler()
     X_escalado = scaler.fit_transform(X_numerico)
 
-    # PCA
+    # 5. PCA
     pca = PCA(n_components=0.90, random_state=42)
     X_pca = pca.fit_transform(X_escalado)
     varianza_retenida = sum(pca.explained_variance_ratio_) * 100
 
-    # EVALUACIÓN CIENTÍFICA (Encontrar el K Óptimo)
+    # 6. EVALUACIÓN CIENTÍFICA (Encontrar el K Óptimo)
     inercias = []
     scores_silueta = []
     rango_k = range(2, 9)
@@ -65,30 +69,29 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
             
     df_evaluacion = pd.DataFrame({'K': rango_k, 'Inercia': inercias, 'Silhouette': scores_silueta})
 
-    # K-MEANS DEFINITIVO (Con el K que el usuario pidió en el slider)
+    # 7. K-MEANS DEFINITIVO (Con el K que el usuario pidió en el slider)
     kmeans_final = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
     etiquetas_clusters = kmeans_final.fit_predict(X_pca)
     score_final = silhouette_score(X_pca, etiquetas_clusters)
 
-    # RE-ENSAMBLAJE
+    # 8. RE-ENSAMBLAJE
     df_final = df_identificadores.copy()
     df_final['Cluster'] = etiquetas_clusters
     
-    # 2D PCA
+    # 2D PCA para visualización frontal
     df_final['PCA_1'] = X_pca[:, 0]
     df_final['PCA_2'] = X_pca[:, 1]
 
-    # CONTEXTO DEL PERFIL (Población y N)
+    # 9. CONTEXTO DEL PERFIL (Población y N)
     resumen_clusters = df_final.groupby('Cluster').agg(
         Total_Municipios=('Cve_Municipio', 'count'),
-        Poblacion_Promedio=('POB_TOTAL', 'mean')
+        Poblacion_Promedio=('Poblacion_Total', 'mean')
     ).reset_index()
 
-    # --- SOLUCIÓN DEL ERROR AQUÍ ---
     # Creación de etiquetas semánticas ricas
     def crear_etiqueta(fila):
-        cluster = int(fila['Cluster']) # <-- Forzamos a que sea un número entero (int)
-        n = int(fila['Total_Municipios']) # Lo mismo para N, por si acaso
+        cluster = int(fila['Cluster'])
+        n = int(fila['Total_Municipios'])
         pob = fila['Poblacion_Promedio'] / 1000 # En miles
         return f"Perfil {chr(65 + cluster)} (N={n} | Pob. Media: {pob:.0f}k)"
 
@@ -97,7 +100,7 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     # Pegamos los nombres ricos al dataframe final
     df_final = df_final.merge(resumen_clusters[['Cluster', 'Nombre_Cluster']], on='Cluster')
 
-    # PERFILES PROMEDIO PARA HEATMAP
+    # 10. PERFILES PROMEDIO PARA HEATMAP
     df_analisis_perfiles = pd.concat([df_final[['Nombre_Cluster']], X_numerico], axis=1)
     perfiles_promedio = df_analisis_perfiles.groupby('Nombre_Cluster').mean()
 
