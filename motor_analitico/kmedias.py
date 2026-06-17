@@ -25,7 +25,6 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     if 'Entidad' in df_filtrado.columns:
         columnas_base.append('Entidad')
         
-    # --- LA SOLUCIÓN AL PROBLEMA ---
     # Identificamos las columnas que son "Totales" o "Agregados" para que no arruinen el clustering
     columnas_trampa = ['Tasa_Global_100k', 'Total_Delitos_Absoluto', 'Robos_Totales', 'Total']
     
@@ -37,7 +36,7 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
         df_filtrado[delito] = (df_filtrado[delito] / df_filtrado['Poblacion_Total']) * 100000
 
     df_identificadores = df_filtrado[columnas_base].copy()
-    X_numerico = df_filtrado[columnas_delitos]
+    X_numerico = df_filtrado[columnas_delitos].copy()
 
     # 4. ESCALADO
     scaler = StandardScaler()
@@ -74,7 +73,9 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     score_final = silhouette_score(X_pca, etiquetas_clusters)
 
     # 8. RE-ENSAMBLAJE
-    df_final = df_identificadores.copy()
+    # --- EL FIX ESTÁ AQUÍ ---
+    # Unimos los identificadores y las tasas (X_numerico) ANTES de meter el cluster
+    df_final = pd.concat([df_identificadores, X_numerico], axis=1)
     df_final['Cluster'] = etiquetas_clusters
     
     df_final['PCA_1'] = X_pca[:, 0]
@@ -87,6 +88,7 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     ).reset_index()
 
     # Calculamos la especialidad criminal de cada cluster usando estadística (Z-Score)
+    # Ahora df_final sí tiene las columnas_delitos, así que ya no tronará
     centroides_crudos = df_final.groupby('Cluster')[columnas_delitos].mean()
     media_global = X_numerico.mean()
     std_global = X_numerico.std()
