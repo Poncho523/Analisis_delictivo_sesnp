@@ -66,20 +66,24 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
     with col1:
         st.subheader("Curva de Concentración Acumulada")
         
-        # 3. TRUCO DE GRÁFICA PARA STREAMLIT
-        # Para que los nombres de los municipios salgan en el Eje X, los ponemos como el 'index'
-        df_grafica = df_pareto.set_index('Municipio').copy()
+        # --- SOLUCIÓN DE LA GRÁFICA ---
+        df_grafica = df_pareto.copy()
         
-        # Creamos una columna falsa donde todos los valores son 80 para dibujar la línea horizontal
+        # Creamos una columna numérica (1, 2, 3...) para evitar el orden alfabético
+        df_grafica['Ranking de Gravedad'] = range(1, len(df_grafica) + 1)
+        df_grafica = df_grafica.set_index('Ranking de Gravedad')
+        
+        # Creamos el umbral recto
         df_grafica['Umbral 80% (Pareto)'] = 80.0
         
-        # Dibujamos las dos líneas a la vez. Mostramos los peores 250 municipios para ver el cruce.
+        # Ahora sí, dibujamos una curva suave y matemática
         st.line_chart(df_grafica[['Porcentaje_Acumulado', 'Umbral 80% (Pareto)']].head(250))
         
     with col2:
-        st.subheader("Top 5 Focos Rojos Absolutos")
+        st.subheader("Top Focos Rojos Absolutos")
         columnas_ver = ['Municipio', 'Entidad', 'Tasa_Anual_100k']
-        st.dataframe(df_pareto[columnas_ver].head(5), hide_index=True)
+        # st.dataframe muestra una tabla interactiva
+        st.dataframe(df_pareto[columnas_ver].head(10), hide_index=True)
 
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("🗄️ Explorador de Inteligencia (Motor POO)")
