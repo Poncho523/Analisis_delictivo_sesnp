@@ -30,7 +30,7 @@ def calcular_pareto_municipios(df: pd.DataFrame) -> dict:
     )
     
     # 3. Ordenamos de mayor a menor basándonos en el VOLUMEN ABSOLUTO de delitos
-    df_ordenado = df.sort_values(by='Total_Anual', ascending=False).reset_index(drop=True)
+    df_ordenado = df_agrupado.sort_values(by='Total_Anual', ascending=False).reset_index(drop=True)
     
     # 4. MATEMÁTICA DE PARETO (Sobre totales reales)
     total_delitos_nacional = df_ordenado['Total_Anual'].sum()
