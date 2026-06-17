@@ -64,19 +64,19 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("**📈 Análisis Exploratorio (EDA)**\n\nRadiografía general del país. Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
+        st.info("** Análisis Exploratorio (EDA)**\n\nRadiografía general del país. Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
     with c2:
-        st.warning("**🤖 Clustering (K-Means)**\n\nInteligencia Artificial para encontrar 'municipios gemelos' y descubrir perfiles criminales por especialidad.")
+        st.warning("** Clustering (K-Means)**\n\nInteligencia Artificial para encontrar 'municipios gemelos' y descubrir perfiles criminales por especialidad.")
     with c3:
-        st.error("**🎯 Patrones (Ley de Pareto)**\n\nAplicación de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
+        st.error("** Patrones (Ley de Pareto)**\n\nAplicación de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        st.success("**📊 Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el volumen de población altera el tipo de crimen cometido.")
+        st.success("** Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el volumen de población altera el tipo de crimen cometido.")
     with c5:
-        st.write("**🔍 Explorador POO**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
+        st.write("** Explorador POO**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
     with c6:
         st.empty() # Espacio en blanco para balancear visualmente la cuadrícula
 
