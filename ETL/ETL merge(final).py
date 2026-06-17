@@ -1,4 +1,4 @@
-#ETL haciendo el merge, agregando la población total y la tasa anueal por cada 100k
+#ETL haciendo el merge, agregando la población total y la tasa anual por cada 100k
 import pandas as pd
 import numpy as np
 
