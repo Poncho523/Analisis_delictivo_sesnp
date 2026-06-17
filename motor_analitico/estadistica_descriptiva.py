@@ -1,19 +1,21 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import warnings
+import plotly.express as px
+import plotly.graph_objects as go
 import sys
 from pathlib import Path
 
-warnings.filterwarnings('ignore')
-
+# Fix de rutas
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
 from ETL.carga_datos import cargar_datos_incidencia
 
 def generar_reporte_eda(df: pd.DataFrame) -> dict:
+    """
+    Genera estadísticas y figuras interactivas de Plotly para el informe narrativo.
+    """
+    # 1. Agrupación base
     df_muni = df.groupby(['Cve_Municipio', 'Municipio', 'POB_TOTAL'])['Total_Anual'].sum().reset_index()
 
     df_muni['Tasa_Anual_100k'] = np.where(
@@ -22,6 +24,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
         0
     )
 
+    # 2. Tabla de Estadísticas Descriptivas
     columnas_stats = ['Total_Anual', 'Tasa_Anual_100k', 'POB_TOTAL']
     resultados = {}
 
@@ -35,61 +38,87 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
             'Máximo': data.max(),
             'Q1 (25%)': data.quantile(0.25),
             'Q3 (75%)': data.quantile(0.75),
-            'Asimetría (Skew)': data.skew(),
+            'Asimetría': data.skew(),
             'Curtosis': data.kurtosis()
         }
 
     df_stats = pd.DataFrame(resultados).round(2)
 
-    sns.set_theme(style="whitegrid", palette="viridis")
-    fig = plt.figure(figsize=(20, 24))
+    # 3. Construcción de Gráficas Individuales en Plotly
+
+    # A) Histograma
+    fig_hist = px.histogram(
+        df_muni, x='Tasa_Anual_100k', nbins=50, 
+        title="Distribución de la Tasa Delictiva",
+        color_discrete_sequence=['#ef553b'],
+        labels={'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
+    )
     
-    # 1. HISTOGRAMA
-    ax1 = plt.subplot(3, 2, 1)
-    sns.histplot(df_muni['Tasa_Anual_100k'], bins=50, kde=True, color='crimson', ax=ax1)
-    ax1.set_title('1. Distribución de la Tasa Delictiva (Histograma)', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Tasa de Delitos por 100k Hab.')
-    ax1.set_ylabel('Frecuencia')
+    # B) Boxplot
+    fig_box = px.box(
+        df_muni, x='Tasa_Anual_100k', 
+        title="Detección de Municipios Atípicos",
+        color_discrete_sequence=['#fd8d49'],
+        labels={'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
+    )
 
-    # 2. BOXPLOT
-    ax2 = plt.subplot(3, 2, 2)
-    sns.boxplot(x=df_muni['Tasa_Anual_100k'], color='orange', ax=ax2)
-    ax2.set_title('2. Detección de Municipios Atípicos (Boxplot)', fontsize=14, fontweight='bold')
-    ax2.set_xlabel('Tasa de Delitos por 100k Hab.')
+    # C) Top Bienes Jurídicos
+    top_bienes = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().sort_values(ascending=False).head(10).reset_index()
+    fig_bienes = px.bar(
+        top_bienes, x='Total_Anual', y='Bien_juridico_afectado', orientation='h',
+        title="Top 10 Bienes Jurídicos Más Afectados",
+        color='Total_Anual', color_continuous_scale='Blues'
+    )
+    fig_bienes.update_layout(yaxis={'categoryorder':'total ascending'})
 
-    # 3. TOP BIENES JURÍDICOS
-    ax3 = plt.subplot(3, 2, 3)
-    top_bienes = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().sort_values(ascending=False).head(10)
-    sns.barplot(x=top_bienes.values, y=top_bienes.index, palette='mako', ax=ax3)
-    ax3.set_title('3. Top 10 Bienes Jurídicos Más Afectados', fontsize=14, fontweight='bold')
-    ax3.set_xlabel('Total de Delitos Anuales')
-
-    # 4. TOP MUNICIPIOS
-    ax4 = plt.subplot(3, 2, 4)
+    # D) Top Municipios
     top_municipios = df_muni[df_muni['POB_TOTAL'] > 5000].sort_values('Tasa_Anual_100k', ascending=False).head(10)
-    sns.barplot(x='Tasa_Anual_100k', y='Municipio', data=top_municipios, palette='rocket', ax=ax4)
-    ax4.set_title('4. Top 10 Municipios con Mayor Riesgo Relativo', fontsize=14, fontweight='bold')
-    ax4.set_xlabel('Tasa por 100k Hab.')
+    fig_munis = px.bar(
+        top_municipios, x='Tasa_Anual_100k', y='Municipio', orientation='h',
+        title="Top 10 Municipios de Mayor Riesgo Relativo",
+        color='Tasa_Anual_100k', color_continuous_scale='Reds'
+    )
+    fig_munis.update_layout(yaxis={'categoryorder':'total ascending'})
 
-    # 5. SCATTER PLOT (Nueva recomendación del experto)
-    ax5 = plt.subplot(3, 2, 5)
-    df_scatter = df_muni[df_muni['POB_TOTAL'] > 5000] # Filtramos ruido
-    sns.scatterplot(x='POB_TOTAL', y='Tasa_Anual_100k', data=df_scatter, alpha=0.5, color='teal', ax=ax5)
-    ax5.set_title('5. Relación Población vs Tasa Delictiva', fontsize=14, fontweight='bold')
-    ax5.set_xlabel('Población Total')
-    ax5.set_ylabel('Tasa por 100k Hab.')
-    ax5.text(0.5, -0.15, '¿Más población = Más criminalidad? Observa la dispersión.', ha='center', transform=ax5.transAxes, color='darkred')
+    # E) Scatter (Población vs Tasa)
+    df_scatter = df_muni[df_muni['POB_TOTAL'] > 5000]
+    fig_scatter = px.scatter(
+        df_scatter, x='POB_TOTAL', y='Tasa_Anual_100k', 
+        title="Relación Población vs Criminalidad",
+        hover_name='Municipio', opacity=0.6, color_discrete_sequence=['#00cc96'],
+        labels={'POB_TOTAL': 'Población Total', 'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
+    )
 
-    # 6. HEATMAP DE CORRELACIÓN
-    ax6 = plt.subplot(3, 2, 6)
-    matriz_corr = df_muni[['POB_TOTAL', 'Total_Anual', 'Tasa_Anual_100k']].corr()
-    sns.heatmap(matriz_corr, annot=True, cmap='coolwarm', vmin=-1, vmax=1, fmt=".2f", linewidths=1, ax=ax6)
-    ax6.set_title('6. Matriz de Correlación (Heatmap)', fontsize=14, fontweight='bold')
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.96])
-    plt.subplots_adjust(hspace=0.3)
+    # F) Curva de Lorenz
+    delitos_ordenados = np.sort(df_muni['Total_Anual'].values)
+    lorenz_curve = np.cumsum(delitos_ordenados) / np.sum(delitos_ordenados)
+    lorenz_curve = np.insert(lorenz_curve, 0, 0)
+    x_lorenz = np.linspace(0.0, 1.0, lorenz_curve.size)
     
+    # Calculo matemático del Gini para el título
+    try:
+        gini = 1 - 2 * np.trapezoid(y=lorenz_curve, x=x_lorenz)
+    except AttributeError:
+        gini = 1 - 2 * np.trapz(y=lorenz_curve, x=x_lorenz)
+
+    df_lorenz = pd.DataFrame({'Porcentaje Municipios': x_lorenz * 100, 'Porcentaje Delitos': lorenz_curve * 100})
+    fig_lorenz = px.line(
+        df_lorenz, x='Porcentaje Municipios', y='Porcentaje Delitos',
+        title=f"Curva de Lorenz - Concentración Criminal (Gini: {gini:.3f})",
+        color_discrete_sequence=['#ab63fa']
+    )
+    # Línea de equidad (la diagonal perfecta)
+    fig_lorenz.add_shape(type="line", x0=0, y0=0, x1=100, y1=100, line=dict(color="gray", dash="dash"))
+
+    # Empaqueto todas las figuras y la tabla para mandarlas a la interfaz
     return {
         "estadisticas": df_stats,
-        "figura_matplotlib": fig
+        "graficas": {
+            "histograma": fig_hist,
+            "boxplot": fig_box,
+            "bienes": fig_bienes,
+            "municipios": fig_munis,
+            "scatter": fig_scatter,
+            "lorenz": fig_lorenz
+        }
     }

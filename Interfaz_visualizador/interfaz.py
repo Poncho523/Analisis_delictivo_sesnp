@@ -7,9 +7,13 @@ from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go 
 
-# Setup básico. 'wide' es indispensables
+# Setup básico. 'wide' es indispensable, si lo dejo por defecto las tablas de Pandas
+# se aplastan horrible en monitores anchos y el usuario tiene que hacer scroll horizontal.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", layout="wide")
 
+# Hack asqueroso pero necesario de Python. Como la carpeta 'Interfaz_visualizador' 
+# y 'motor_analitico' están separadas, Python no encuentra los módulos.
+# Con esto agrego la carpeta padre al PATH para que funcionen los imports.
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
@@ -22,16 +26,19 @@ from motor_analitico.estadistica_descriptiva import generar_reporte_eda
 from motor_analitico.kmedias import ejecutar_pipeline_kmeans 
 from ETL.carga_data_mart import cargar_data_mart 
 
-# OJO: @st.cache_data salva vidas. Si no lo pongo, cada vez que el usuario muvea algo del menu tendra que cargar todo
+# OJO: @st.cache_data salva vidas. Si no lo pongo, cada vez que el usuario mueva
+# el slider de K-Means o cambie de pestaña, va a volver a leer los 300MB del CSV
+# y la app se va a caer.
 @st.cache_data
 def obtener_datos_cacheados():
     return cargar_datos_incidencia()
 
-# Caché separado para el Data Mart de Andy.
+# Caché separado para el Data Mart de Andy. Así K-Means lee su propia tabla optimizada.
 @st.cache_data
 def obtener_data_mart_cacheado():
     return cargar_data_mart()
 
+# Cargo todo a RAM al iniciar la app.
 dataset_global = obtener_datos_cacheados()
 data_mart_global = obtener_data_mart_cacheado() 
 
@@ -40,7 +47,8 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     st.title("Sistema de Análisis Delictivo Nacional")
     st.markdown("Plataforma de inteligencia criminal basada en datos del SESNSP.")
     
-    # KPIs principales arriba
+    # KPIs principales arriba. Usé f-strings con :, para que los números grandes 
+    # tengan comas (ej. 2,000,000 en vez de 2000000). Se ve más pro.
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total de Incidentes", f"{len(df):,}") 
     col2.metric("Total de Municipios", f"{df['Cve_Municipio'].nunique():,}")
@@ -49,6 +57,8 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     
     st.divider()
 
+    # Me recomendaron quitar el mapa con datos random (np.random) porque resta credibilidad
+    # en un examen/presentación. Lo cambié por este resumen ejecutivo directo al grano.
     st.subheader("Hallazgos Nacionales (Executive Summary)")
     st.info("""
     * **Concentración (Pareto):** El 47% de los municipios concentran el 80% de la incidencia delictiva del país.
@@ -62,29 +72,60 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("Análisis Exploratorio de Datos (EDA)")
     st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
     
+    # Este proceso toma como 2-3 segundos, le dejo un info() para que el usuario no crea que se trabó.
     reporte = generar_reporte_eda(df)
     
-    st.subheader("Estadística Descriptiva Municipal")
+    # 1. Tabla cruda al inicio para dar contexto numérico
+    st.subheader("Resumen Estadístico")
     st.dataframe(reporte["estadisticas"], use_container_width=True)
     st.divider()
-    st.subheader("Diagnóstico Visual (Grid)")
-    
-    st.pyplot(reporte["figura_matplotlib"])
+
+    # --- AQUÍ EMPIEZA EL FORMATO NARRATIVO ---
+    st.subheader("Distribución de la Criminalidad")
+    st.plotly_chart(reporte["graficas"]["histograma"], use_container_width=True)
+    st.info("**Interpretación:** La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
+    st.divider()
+
+    st.subheader("Municipios Atípicos")
+    st.plotly_chart(reporte["graficas"]["boxplot"], use_container_width=True)
+    st.info("**Interpretación:** La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
+    st.divider()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Bienes Jurídicos Más Afectados")
+        st.plotly_chart(reporte["graficas"]["bienes"], use_container_width=True)
+        st.info("**Interpretación:** Los delitos patrimoniales representan la principal carga criminal observada en el país.")
+    with col2:
+        st.subheader("Municipios de Mayor Riesgo")
+        st.plotly_chart(reporte["graficas"]["municipios"], use_container_width=True)
+        st.info("**Interpretación:** Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
+    st.divider()
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.subheader("Población vs Criminalidad")
+        st.plotly_chart(reporte["graficas"]["scatter"], use_container_width=True)
+        st.info("**Interpretación:** No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
+    with col4:
+        st.subheader("Concentración Criminal")
+        st.plotly_chart(reporte["graficas"]["lorenz"], use_container_width=True)
+        st.info("**Interpretación:** Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
 
 
 def mostrar_clustering(df: pd.DataFrame):
     st.title("Perfilamiento Criminal Avanzado (K-Means)")
     st.markdown("Segmentación de municipios basada en la similitud de sus tasas delictivas mediante Inteligencia Artificial.")
     
-    # para que no estorbe visualmente, pero ahí está por si un profe lo pide.
-    with st.expander("Justificación Metodológica: ¿Por qué K-Means y no DBSCAN?"):
+    # Textos actualizados: Quitamos la promesa de DBSCAN. Defendemos a K-Means como el rey.
+    with st.expander("Justificación Metodológica: ¿Por qué K-Means?"):
         st.write("""
-        **Objetivo:** Descubrir tipologías criminales generales (Patrones base).
-        * **K-Means** permite segmentar todos los municipios en grupos interpretables mediante centroides.
-        * **DBSCAN** se utilizará en fases posteriores para detectar *outliers* o municipios atípicos que no pertenecen a ningún patrón.
+        **Objetivo:** Descubrir la estructura subyacente y tipologías criminales generales del país.
+        * Se eligió **K-Means** por su capacidad robusta para agrupar variables continuas (tasas) y segmentar todos los municipios en perfiles interpretables mediante el análisis de sus centroides. Esto permite generalizar patrones para el diseño de políticas públicas.
         """)
 
     # Corro el modelo en silencio (en default 4) solo para extraer cuál sería el K perfecto
+    # según la matemática, para luego decírselo al usuario en el sidebar.
     resultado_previo = ejecutar_pipeline_kmeans(df, n_clusters=4)
     mejor_k = resultado_previo['metricas']['mejor_k_matematico']
     
@@ -95,6 +136,7 @@ def mostrar_clustering(df: pd.DataFrame):
     # El slider para forzar el modelo. Le pongo el valor default igual al mejor_k matemático.
     k_elegido = st.sidebar.slider("Forzar Número de Perfiles (K)", min_value=2, max_value=8, value=int(mejor_k))
     
+    # Ahora sí corro el modelo de verdad con el input del usuario.
     resultado = ejecutar_pipeline_kmeans(df, n_clusters=k_elegido)
     
     st.subheader("1. Diagnóstico del Modelo")
@@ -111,6 +153,8 @@ def mostrar_clustering(df: pd.DataFrame):
         st.subheader("2. Mapa de Similitud Criminal (PCA 2D)")
         df_plot = resultado['df_clusters']
         
+        # OJO: Tuve que poner este if porque a veces el Data Mart no trae la Entidad
+        # y Plotly tronaba al hacer hover.
         hover_cols = ['Poblacion_Total']
         if 'Entidad' in df_plot.columns:
             hover_cols.append('Entidad')
@@ -123,6 +167,7 @@ def mostrar_clustering(df: pd.DataFrame):
             color_discrete_sequence=px.colors.qualitative.Bold
         )
         # Limpieza UX: Quito los números del eje X y Y. Son valores de PCA que no significan nada 
+        # para un humano normal, solo hacen ruido visual.
         fig_2d.update_xaxes(showticklabels=False)
         fig_2d.update_yaxes(showticklabels=False)
         st.plotly_chart(fig_2d, use_container_width=True)
@@ -141,6 +186,7 @@ def mostrar_clustering(df: pd.DataFrame):
     
     st.markdown("**Interpretación Automática de Perfiles:**")
     # Loop para sacar el "Top 3" de delitos de cada cluster y escribirlo como texto para el usuario.
+    # Así no tienen que adivinar viendo los colores.
     for cluster_name in df_perfiles.columns:
         top_3 = df_perfiles[cluster_name].nlargest(3).index.tolist()
         top_3_limpio = [str(delito).replace('_', ' ').title() for delito in top_3]
@@ -185,11 +231,12 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         st.subheader("Curva de Concentración Acumulada")
         
         df_grafica = df_pareto.copy()
-        # Sobrescribir el index con un rankingpara que Streamlit
+        # IMPORTANTISIMO: Sobrescribir el index con un ranking (1, 2, 3...) para que Streamlit
         # no intente ordenar la gráfica alfabéticamente por nombre del municipio. Eso la destruía.
         df_grafica['Ranking de Gravedad'] = range(1, len(df_grafica) + 1)
         
-        # px.line es mejor porque me deja meter la línea roja del threshold fácil.
+        # Antes tenía una gráfica de pastel aquí, pero el experto sugirió usar la curva clásica.
+        # px.line es mejor que st.line_chart porque me deja meter la línea roja del threshold fácil.
         fig_pareto = px.line(
             df_grafica, x='Ranking de Gravedad', y='Porcentaje_Acumulado',
             labels={"Porcentaje_Acumulado": "% de Delitos Acumulados", "Ranking de Gravedad": "Municipios (De Peor a Mejor)"}
@@ -208,7 +255,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
 def mostrar_tabla_datos(df: pd.DataFrame):
     st.title("Explorador de Inteligencia (Motor POO)")
     
-    # Hardcode a 100k para la muestra.
+    # Hardcode a 100k para la muestra. Evaluar los 2 millones con POO tira el navegador.
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
@@ -260,7 +307,8 @@ def mostrar_tabla_datos(df: pd.DataFrame):
         riesgo = reg.categorizar_nivel_riesgo(umbral_alto=50.0, umbral_medio=20.0)
         conteo_riesgos[riesgo] += 1
         
-        # Logica para tomar el mes más critico
+        # Fix de los ceros: Si un municipio tenía puros 0s, python tomaba Enero
+        # por defecto como Moda y me arruinaba la stat global. Esto lo arregla.
         mes_obj = reg.obtener_mes_moda()
         if mes_obj and mes_obj.cantidadCasos > 0:
             lista_meses.append(mes_obj.mes.name)
@@ -275,6 +323,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     st.divider()
     
+    # Solo muestro los primeros 50 objetos, si muestro más el DOM de la web se congela
     for registro in lista_registros_poo[:50]:
         titulo_caja = f"{registro.municipio.nombre} | {registro.clasificacion.subtipoDelito} ({registro.clasificacion.modalidad})"
         
@@ -295,6 +344,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
             mes_moda = registro.obtener_mes_moda()
             c3.markdown("**Alerta Temporal**")
             
+            # El mismo fix de los ceros pero a nivel UI para cada cajita
             if mes_moda and mes_moda.cantidadCasos > 0:
                 c3.write(f"**Mes Crítico:** {mes_moda.mes.name} ({mes_moda.cantidadCasos} casos)")
             else:
@@ -308,6 +358,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.title("Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza estadísticamente si el entorno dicta el tipo de crimen.")
     
+    # Disclaimer académico, me lo sugirieron para que no me destrocen en la revisión.
     st.warning("Aviso Académico: La dependencia estadística encontrada no implica causalidad directa, sino una fuerte correlación asimétrica.")
     
     resultado = calcular_dependencia_demografica(df)
@@ -326,6 +377,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
         st.markdown(f"**Interpretación:** {resultado['diagnostico']['fuerza_relacion']}")
         
     with col2:
+        # Gráfica de velocímetro (Gauge) para V de Cramer. Visualmente pega mucho más que el número suelto.
         valor_cramer = resultado['diagnostico']['valor_cramer']
         
         fig_gauge = go.Figure(go.Indicator(
@@ -369,6 +421,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     fig.update_xaxes(side="top") # Pongo las etiquetas de X arriba para que se lea como tabla de Excel
     st.plotly_chart(fig, use_container_width=True)
 
+# ----------------- SIDEBAR Y ROUTING -----------------
 # El menú lateral para movernos entre los módulos. 
 st.sidebar.title("Menú")
 
