@@ -80,25 +80,6 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     with c6:
         st.empty() # Espacio en blanco para balancear visualmente la cuadrícula
 
-    st.markdown("Plataforma de inteligencia criminal basada en datos del SESNSP.")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total de Incidentes", f"{len(df):,}") 
-    col2.metric("Total de Municipios", f"{df['Cve_Municipio'].nunique():,}")
-    col3.metric("Municipios Críticos", "1,171", "Pareto 80%")
-    col4.metric("Estado de Alerta", "Activo", "Megalópolis", delta_color="inverse")
-    
-    st.divider()
-
-    st.subheader("Hallazgos Nacionales (Executive Summary)")
-    st.info("""
-    * **Concentración (Pareto):** El 47% de los municipios concentran el 80% de la incidencia delictiva del país.
-    * **Dominancia Patrimonial:** El delito contra el patrimonio (robos, fraudes) representa el núcleo principal del crimen a nivel nacional en entornos urbanos.
-    * **Perfiles Criminales (K-Means):** Se identificaron tipologías claramente diferenciadas, separando los focos de violencia interpersonal de las zonas de robo generalizado.
-    * **Influencia Demográfica (Chi-Cuadrada):** Existe una comprobación estadística de que la demografía urbana/rural dicta fuertemente el perfil del crimen.
-    """)
-
-
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("Análisis Exploratorio de Datos (EDA)")
     st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
