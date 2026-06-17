@@ -74,7 +74,7 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
     df_final = df_identificadores.copy()
     df_final['Cluster'] = etiquetas_clusters
     
-    # 2D PCA (La recomendación del Senior)
+    # 2D PCA
     df_final['PCA_1'] = X_pca[:, 0]
     df_final['PCA_2'] = X_pca[:, 1]
 
@@ -84,10 +84,11 @@ def ejecutar_pipeline_kmeans(df: pd.DataFrame, n_clusters: int = 4) -> dict:
         Poblacion_Promedio=('POB_TOTAL', 'mean')
     ).reset_index()
 
+    # --- SOLUCIÓN DEL ERROR AQUÍ ---
     # Creación de etiquetas semánticas ricas
     def crear_etiqueta(fila):
-        cluster = fila['Cluster']
-        n = fila['Total_Municipios']
+        cluster = int(fila['Cluster']) # <-- Forzamos a que sea un número entero (int)
+        n = int(fila['Total_Municipios']) # Lo mismo para N, por si acaso
         pob = fila['Poblacion_Promedio'] / 1000 # En miles
         return f"Perfil {chr(65 + cluster)} (N={n} | Pob. Media: {pob:.0f}k)"
 
