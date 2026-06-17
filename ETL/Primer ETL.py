@@ -7,7 +7,7 @@ municipios = pd.read_csv("BD.csv", encoding='latin-1')
 def quitar_acentos(texto):
     if not isinstance(texto, str):
         return texto
-    # Normaliza el texto a NFD (separa la letra del acento)
+    # Normaliza el texto a NFD para descomponer al caracter en su forma elemental
     # Luego codifica a ASCII ignorando los errores y decodifica de nuevo
     return unicodedata.normalize('NFD', texto).encode('ascii', 'ignore').decode('utf-8')
 
