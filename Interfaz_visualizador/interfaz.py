@@ -64,25 +64,25 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("** Análisis Exploratorio (EDA)**\n\nRadiografía general del país. Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
+        st.info("** Análisis Exploratorio (EDA)**\n\n Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
     with c2:
         st.warning("** Clustering (K-Means)**\n\nInteligencia Artificial para encontrar 'municipios gemelos' y descubrir perfiles criminales por especialidad.")
     with c3:
-        st.error("** Patrones (Ley de Pareto)**\n\nAplicación de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
+        st.error("** Patrones (Ley de Pareto)**\n\nVerificacion de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        st.success("** Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el volumen de población altera el tipo de crimen cometido.")
+        st.success("** Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el perfil demografico afecta a tipo de crimen")
     with c5:
-        st.write("** Explorador POO**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
+        st.write("** Explorador**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
     with c6:
         st.empty() # Espacio en blanco para balancear visualmente la cuadrícula
 
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("Análisis Exploratorio de Datos (EDA)")
-    st.markdown("Radiografía estadística global de la criminalidad a nivel municipal.")
+    st.markdown("Estadística global de la criminalidad a nivel municipal.")
     
     reporte = generar_reporte_eda(df)
     
@@ -92,38 +92,38 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
 
     st.subheader("Distribución de la Criminalidad")
     st.plotly_chart(reporte["graficas"]["histograma"], use_container_width=True)
-    st.info("**Interpretación:** La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
+    st.info(" La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
     st.divider()
 
     st.subheader("Municipios Atípicos")
     st.plotly_chart(reporte["graficas"]["boxplot"], use_container_width=True)
-    st.info("**Interpretación:** La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
+    st.info(" La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
     st.divider()
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Bienes Jurídicos Más Afectados")
         st.plotly_chart(reporte["graficas"]["bienes"], use_container_width=True)
-        st.info("**Interpretación:** Los delitos patrimoniales representan la principal carga criminal observada en el país.")
+        st.info(" Los delitos patrimoniales representan la principal carga criminal observada en el país.")
     with col2:
         st.subheader("Municipios de Mayor Riesgo")
         st.plotly_chart(reporte["graficas"]["municipios"], use_container_width=True)
-        st.info("**Interpretación:** Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
+        st.info(" Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
     st.divider()
 
     col3, col4 = st.columns(2)
     with col3:
         st.subheader("Población vs Criminalidad")
         st.plotly_chart(reporte["graficas"]["scatter"], use_container_width=True)
-        st.info("**Interpretación:** No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
+        st.info(" No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
     with col4:
         st.subheader("Concentración Criminal")
         st.plotly_chart(reporte["graficas"]["lorenz"], use_container_width=True)
-        st.info("**Interpretación:** Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
+        st.info(" Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
 
 
 def mostrar_clustering(df: pd.DataFrame):
-    st.title("Perfilamiento Criminal Avanzado (K-Means)")
+    st.title("Perfilamiento Criminal (K-Means)")
     st.markdown("Segmentación de municipios basada en la similitud de sus tasas delictivas mediante Inteligencia Artificial.")
     
     with st.expander("Justificación Metodológica: ¿Por qué K-Means?"):
@@ -137,7 +137,7 @@ def mostrar_clustering(df: pd.DataFrame):
     
     st.sidebar.markdown("---")
     st.sidebar.subheader("Parámetros del Modelo")
-    st.sidebar.info(f"Recomendación Algorítmica: Silhouette sugiere K = {mejor_k}.")
+    st.sidebar.info(f"Recomendación: Silhouette sugiere K = {mejor_k}.")
     
     k_elegido = st.sidebar.slider("Forzar Número de Perfiles (K)", min_value=2, max_value=8, value=int(mejor_k))
     
@@ -154,7 +154,7 @@ def mostrar_clustering(df: pd.DataFrame):
     col_g1, col_g2 = st.columns([2, 1])
     
     with col_g1:
-        st.subheader("2. Mapa de Similitud Criminal (PCA 2D)")
+        st.subheader("2. Mapa de Similitud Criminal")
         df_plot = resultado['df_clusters']
         
         hover_cols = ['Poblacion_Total']
@@ -183,7 +183,7 @@ def mostrar_clustering(df: pd.DataFrame):
     
     df_perfiles = resultado['perfiles_promedio'].T
     
-    st.markdown("**Interpretación Automática de Perfiles:**")
+    st.markdown("Perfiles:**")
     for cluster_name in df_perfiles.columns:
         top_3 = df_perfiles[cluster_name].nlargest(3).index.tolist()
         top_3_limpio = [str(delito).replace('_', ' ').title() for delito in top_3]
@@ -206,13 +206,12 @@ def mostrar_clustering(df: pd.DataFrame):
 
 
 def mostrar_patrones_delictivos(df: pd.DataFrame):
-    st.title("Análisis de Patrones (Ley de Pareto)")
-    st.info("Ejecutando motor analítico en tiempo real...")
+    st.title("Análisis de concentracion delictiva ")
     
     resultado_pareto = calcular_pareto_municipios(df)
     df_pareto = resultado_pareto["datos_grafica"]
     
-    st.subheader("La Historia del 80/20 en el Crimen Nacional")
+    st.subheader("Verificar si se cumple la ley de pareto")
     
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Total de Municipios", f"{resultado_pareto['total_municipios']:,}")
@@ -238,7 +237,7 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
         st.plotly_chart(fig_pareto, use_container_width=True)
         
     with col2:
-        st.subheader("Top Focos Rojos Absolutos")
+        st.subheader("Top Focos Rojos Nacionales")
         columnas_ver = ['Municipio', 'Entidad', 'Total_Anual']
         df_mostrar = df_pareto[columnas_ver].head(10).copy()
         
@@ -247,13 +246,13 @@ def mostrar_patrones_delictivos(df: pd.DataFrame):
 
 
 def mostrar_tabla_datos(df: pd.DataFrame):
-    st.title("Explorador de Inteligencia (Motor POO)")
+    st.title("Explorador")
     
     # Hardcode a 100k para la muestra para no tronar el navegador.
     TAMANO_MUESTRA = 100000
     if len(df) > TAMANO_MUESTRA:
         df_muestra = df.sample(n=TAMANO_MUESTRA, random_state=42)
-        st.caption(f"Aviso Metodológico: Operando sobre muestra representativa de {TAMANO_MUESTRA:,} registros.")
+        st.caption(f" Operando sobre muestra representativa de {TAMANO_MUESTRA:,} registros.")
     else:
         df_muestra = df
 
@@ -288,7 +287,7 @@ def mostrar_tabla_datos(df: pd.DataFrame):
     
     lista_registros_poo = transformar_dataframe_a_objetos(df_filtrado)
     
-    st.subheader("Resumen Ejecutivo Global")
+    st.subheader("Resumen Global")
     
     conteo_riesgos = {"Alto": 0, "Medio": 0, "Bajo": 0}
     lista_meses = []
@@ -345,11 +344,9 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     st.title("Dependencia Demográfica (Chi-Cuadrada)")
     st.markdown("Analiza estadísticamente si el entorno dicta el tipo de crimen.")
     
-    st.warning("Aviso Académico: La dependencia estadística encontrada no implica causalidad directa, sino una fuerte correlación asimétrica.")
-    
     resultado = calcular_dependencia_demografica(df)
     
-    st.subheader("1. Diagnóstico Ejecutivo")
+    st.subheader("1. Resultado de Prueba de chi2")
     
     col1, col2 = st.columns([1, 1])
     
@@ -362,7 +359,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
         
         if resultado['diagnostico']['existe_relacion']:
             st.success(f"**Comprobado:** Sí existe una relación estadística. El tipo de entorno modifica el perfil criminal.")
-            st.markdown(f"**Significancia (P-Valor):** {p_str} *(Como es menor a 0.05, el hallazgo es matemáticamente real, no es producto de la casualidad)*.")
+            st.markdown(f"**Significancia (P-Valor):** {p_str} *(Como es menor a 0.05, podemos concluir a favor de la hipotesis alternativa)*.")
         else:
             st.error(f"**Sin Relación:** El entorno no dicta el tipo de crimen (P-Valor: {p_str}).")
             
@@ -397,7 +394,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     
     st.divider()
     
-    st.subheader("2. Perfil Criminal por Zona (Mapa de Calor %)")
+    st.subheader("2. Perfil Criminal por Zona")
     
     df_porcentajes = resultado['perfil_criminal_porcentajes']
     
