@@ -218,7 +218,7 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
         eps_elegido = st.sidebar.slider("Sensibilidad del Radar (EPS)", min_value=0.5, max_value=5.0, value=2.0, step=0.1)
         st.sidebar.info("A mayor EPS, el modelo es más tolerante. A menor EPS, detecta más anomalías.")
 
-        resultado_dbscan = ejecutar_pipeline_dbscan(df, eps=eps_elegido)
+        resultado_dbscan = ejecutar_pipeline_dbscan(df, eps=eps_elegido,min_samples=38)
         
         st.subheader("1. Detección de Focos Rojos Atípicos")
         c1, c2, c3 = st.columns(3)
