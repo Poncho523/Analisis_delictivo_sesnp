@@ -5,7 +5,6 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
-from sklearn.neighbors import NearestNeighbors
 
 # Puente Arquitectónico
 ruta_raiz = Path(__file__).parent.parent
@@ -18,10 +17,14 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     Pipeline complementario: Tasas -> Escala -> PCA -> DBSCAN (Detección de Ruido)
     """
     # 1. Filtramos municipios muy pequeños (Misma regla que K-Means)
+    if 'Poblacion_Total' not in df.columns:
+        raise KeyError("La columna 'Poblacion_Total' no se encontró en el Data Mart.")
+        
     df_filtrado = df[df['Poblacion_Total'] >= 5000].copy()
     
-    # 2. Separar Metadata
+    # 2. Separar Metadata dinámicamente
     columnas_base = ['Cve_Municipio', 'Municipio', 'Poblacion_Total']
+    # Solo agregamos 'Entidad' si realmente existe en tu CSV
     if 'Entidad' in df_filtrado.columns:
         columnas_base.append('Entidad')
         
@@ -67,7 +70,7 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     
     num_outliers = len(df_outliers)
     total_municipios = len(df_final)
-    porcentaje_ruido = (num_outliers / total_municipios) * 100
+    porcentaje_ruido = (num_outliers / total_municipios) * 100 if total_municipios > 0 else 0
     
     # Cantidad de clústeres reales (excluyendo el -1)
     num_clusters = len(set(etiquetas_dbscan)) - (1 if -1 in etiquetas_dbscan else 0)
@@ -82,8 +85,7 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     else:
         resumen_clusters = pd.DataFrame(columns=['Cluster_DBSCAN', 'Total_Municipios', 'Poblacion_Promedio', 'Tipo'])
 
-    # 10. EVALUAR ESPECIALIDAD DE LOS OUTLIERS (Z-Score)
-    # Para decirle al usuario *por qué* ese municipio es un outlier
+    # 10. EVALUAR ESPECIALIDAD DE LOS OUTLIERS (Z-Score Inverso)
     media_global = X_numerico.mean()
     std_global = X_numerico.std()
     
@@ -91,16 +93,18 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
         # Comparamos cada outlier contra la media nacional
         tasas_outliers = df_outliers[columnas_delitos]
         z_scores_outliers = (tasas_outliers - media_global) / (std_global + 1e-9)
+        
         # Encontramos el delito con el pico más alto para cada outlier
         delito_anomalo = z_scores_outliers.idxmax(axis=1)
         df_outliers['Delito_Anomalo_Principal'] = delito_anomalo.str.replace('_', ' ').str.title()
         
-        # Limpiar dataframe de outliers para mostrar en tabla
-        df_outliers = df_outliers[['Cve_Municipio', 'Municipio', 'Entidad', 'Poblacion_Total', 'Delito_Anomalo_Principal']]
+        # FIX: Mostrar dinámicamente las columnas base que sí existan + la nueva columna
+        columnas_mostrar = columnas_base + ['Delito_Anomalo_Principal']
+        df_outliers = df_outliers[columnas_mostrar]
 
     return {
         "df_completo": df_final,
-        "df_outliers": df_outliers.sort_values(by='Poblacion_Total', ascending=False),
+        "df_outliers": df_outliers.sort_values(by='Poblacion_Total', ascending=False) if num_outliers > 0 else df_outliers,
         "resumen_clusters": resumen_clusters,
         "metricas": {
             "num_clusters_encontrados": num_clusters,
@@ -115,10 +119,14 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
 
 if __name__ == "__main__":
     dataset = cargar_data_mart()
-    resultados = ejecutar_pipeline_dbscan(dataset, eps=2.0) # eps de 2.0 suele funcionar bien post-PCA escalado
+    
+    # eps de 2.0 suele funcionar muy bien post-PCA escalado, puedes jugar con este valor en Streamlit
+    resultados = ejecutar_pipeline_dbscan(dataset, eps=2.0) 
     
     print("\n--- RESULTADOS DBSCAN ---")
     print(f"Clústeres Naturales: {resultados['metricas']['num_clusters_encontrados']}")
     print(f"Municipios Atípicos (Ruido): {resultados['metricas']['num_outliers']} ({resultados['metricas']['porcentaje_ruido']}%)")
-    print("\nTop 5 Municipios Más Extraños (Outliers):")
-    print(resultados['df_outliers'].head(5))
+    
+    if resultados['metricas']['num_outliers'] > 0:
+        print("\nTop 5 Municipios Más Extraños (Outliers):")
+        print(resultados['df_outliers'].head(5))
