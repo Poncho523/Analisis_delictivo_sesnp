@@ -25,13 +25,10 @@ def transformar_dataframe_a_objetos(df_filtrado: pd.DataFrame) -> list[RegistroI
     
     lista_objetos = []
     
-    # iterrows() nos permite leer el dataframe fila por fila
     for index, row in df_filtrado.iterrows():
         
-        # 1. Instanciar Entidad Base (Municipio)
         mun = Municipio(row['Cve_Municipio'], row['Municipio'])
         
-        # 2. PATRÓN FACTORY: Decidir qué clase hija de Delito instanciar
         bien_juridico = row['Bien_juridico_afectado']
         tipo = row['Tipo_de_delito']
         subtipo = row['Subtipo_de_delito']
@@ -48,7 +45,6 @@ def transformar_dataframe_a_objetos(df_filtrado: pd.DataFrame) -> list[RegistroI
         else:
             delito = DelitoOtros(bien_juridico, tipo, subtipo, modalidad)
             
-        # 3. Ensamblar la clase principal
         registro = RegistroIncidencia(
             id_registro=index, # Usamos el índice de Pandas como ID temporal
             anio=2015,
@@ -58,12 +54,10 @@ def transformar_dataframe_a_objetos(df_filtrado: pd.DataFrame) -> list[RegistroI
             clasificacion=delito
         )
         
-        # 4. Inyectar la temporalidad (Los 12 meses)
         meses_str = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
         
         for i, nombre_mes in enumerate(meses_str, start=1):
-            # i va del 1 al 12, lo que encaja perfecto con tu Enum Mes(1), Mes(2)...
             conteo = ConteoMensual(Mes(i), row[nombre_mes])
             registro.agregar_conteo(conteo)
             

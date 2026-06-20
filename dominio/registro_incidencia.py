@@ -54,7 +54,6 @@ class RegistroIncidencia:
 
     def calcular_indice_urgencia(self) -> float:
         """Cruza la gravedad del delito con su frecuencia demográfica."""
-        # Multiplicamos el peso (1 al 10) por la tasa por 100k habitantes.
         return self.tasaAnual100k * self.clasificacion.calcular_peso_estadistico()
 
     def determinar_patron_ocurrencia(self) -> str:
@@ -62,7 +61,6 @@ class RegistroIncidencia:
         if not self.conteos:
             return "Desconocido"
             
-        # Contamos en cuántos meses se registró al menos 1 caso
         meses_activos = sum(1 for c in self.conteos if c.cantidadCasos > 0)
         
         if meses_activos >= 10:
