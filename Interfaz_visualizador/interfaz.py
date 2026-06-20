@@ -21,6 +21,7 @@ from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 from motor_analitico.chi2 import calcular_dependencia_demografica
 from motor_analitico.estadistica_descriptiva import generar_reporte_eda 
 from motor_analitico.kmedias import ejecutar_pipeline_kmeans 
+from motor_analitico.dbscan_anomalias import ejecutar_pipeline_dbscan # <--- NUEVO IMPORT DBSCAN
 from ETL.carga_data_mart import cargar_data_mart 
 
 # @st.cache_data salva vidas. Evita que lea los 300MB del CSV cada vez que mueven algo.
@@ -41,15 +42,12 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     st.markdown("Plataforma interactiva para perfilamiento y análisis de la incidencia delictiva municipal.")
     
     # 1. CÁLCULOS 100% DINÁMICOS AL VUELO
-    # Extraemos la realidad de los datos en microsegundos
     total_delitos = int(df['Total_Anual'].sum()) if 'Total_Anual' in df.columns else len(df)
     total_municipios = df['Municipio'].nunique()
-    # Buscamos el estado con más volumen
     estado_top = df.groupby('Entidad')['Total_Anual'].sum().idxmax()
-    # Buscamos la familia de delitos con más volumen
     delito_top = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().idxmax()
 
-    # 2. KPIs REALES (Nada de números inventados o "harcodeados")
+    # 2. KPIs REALES 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Carpetas de Investigación", f"{total_delitos:,.0f}") 
     col2.metric("Municipios Analizados", f"{total_municipios:,}")
@@ -58,27 +56,27 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     
     st.divider()
 
-    # 3. GUÍA OPERATIVA (Sustituye al texto genérico de IA)
+    # 3. GUÍA OPERATIVA 
     st.subheader("Guía Operativa del Sistema")
     st.markdown("Seleccione un módulo en el menú lateral para iniciar la extracción de inteligencia:")
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("** Análisis Exploratorio (EDA)**\n\n Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
+        st.info("**📈 Análisis Exploratorio (EDA)**\n\n Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
     with c2:
-        st.warning("** Clustering (K-Means)**\n\nInteligencia Artificial para encontrar 'municipios gemelos' y descubrir perfiles criminales por especialidad.")
+        st.warning("**🤖 Agrupamiento (IA)**\n\nCompara perfiles generales (K-Means) vs detección de anomalías atípicas (DBSCAN).")
     with c3:
-        st.error("** Patrones (Ley de Pareto)**\n\nVerificacion de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
+        st.error("**🎯 Patrones (Ley de Pareto)**\n\nVerificacion de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        st.success("** Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el perfil demografico afecta a tipo de crimen")
+        st.success("**📊 Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el perfil demografico afecta a tipo de crimen")
     with c5:
-        st.write("** Explorador**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
+        st.write("**🔍 Explorador**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
     with c6:
-        st.empty() # Espacio en blanco para balancear visualmente la cuadrícula
+        st.empty() 
 
 def mostrar_analisis_exploratorio(df: pd.DataFrame):
     st.title("Análisis Exploratorio de Datos (EDA)")
@@ -92,117 +90,177 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
 
     st.subheader("Distribución de la Criminalidad")
     st.plotly_chart(reporte["graficas"]["histograma"], use_container_width=True)
-    st.info(" La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
+    st.info("💡 La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
     st.divider()
 
     st.subheader("Municipios Atípicos")
     st.plotly_chart(reporte["graficas"]["boxplot"], use_container_width=True)
-    st.info(" La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
+    st.info("💡 La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
     st.divider()
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Bienes Jurídicos Más Afectados")
         st.plotly_chart(reporte["graficas"]["bienes"], use_container_width=True)
-        st.info(" Los delitos patrimoniales representan la principal carga criminal observada en el país.")
+        st.info("💡 Los delitos patrimoniales representan la principal carga criminal observada en el país.")
     with col2:
         st.subheader("Municipios de Mayor Riesgo")
         st.plotly_chart(reporte["graficas"]["municipios"], use_container_width=True)
-        st.info(" Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
+        st.info("💡 Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
     st.divider()
 
     col3, col4 = st.columns(2)
     with col3:
         st.subheader("Población vs Criminalidad")
         st.plotly_chart(reporte["graficas"]["scatter"], use_container_width=True)
-        st.info(" No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
+        st.info("💡 No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
     with col4:
         st.subheader("Concentración Criminal")
         st.plotly_chart(reporte["graficas"]["lorenz"], use_container_width=True)
-        st.info(" Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
+        st.info("💡 Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
 
 
-def mostrar_clustering(df: pd.DataFrame):
-    st.title("Perfilamiento Criminal (K-Means)")
-    st.markdown("Segmentación de municipios basada en la similitud de sus tasas delictivas mediante Inteligencia Artificial.")
+def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
+    """NUEVO MÓDULO COMPARATIVO: K-MEANS vs DBSCAN"""
+    st.title("Inteligencia Artificial: Agrupamiento y Anomalías")
+    st.markdown("Comparativa entre segmentación global (K-Means) y detección de focos rojos atípicos (DBSCAN).")
     
-    with st.expander("Justificación Metodológica: ¿Por qué K-Means?"):
-        st.write("""
-        **Objetivo:** Descubrir la estructura subyacente y tipologías criminales generales del país.
-        * Se eligió **K-Means** por su capacidad robusta para agrupar variables continuas (tasas) y segmentar todos los municipios en perfiles interpretables mediante el análisis de sus centroides. Esto permite generalizar patrones para el diseño de políticas públicas.
-        """)
+    # Creamos dos pestañas para organizar la información
+    tab_kmeans, tab_dbscan = st.tabs(["🤖 K-Means (Perfiles Globales)", "🎯 DBSCAN (Cazador de Anomalías)"])
+    
+    # ================= PESTAÑA 1: K-MEANS =================
+    with tab_kmeans:
+        with st.expander("Justificación Metodológica: ¿Por qué K-Means?"):
+            st.write("""
+            **Objetivo:** Descubrir la estructura subyacente y tipologías criminales generales del país.
+            * Se eligió **K-Means** por su capacidad robusta para agrupar variables continuas (tasas) y segmentar todos los municipios en perfiles interpretables mediante el análisis de sus centroides. Esto permite generalizar patrones para el diseño de políticas públicas.
+            """)
 
-    resultado_previo = ejecutar_pipeline_kmeans(df, n_clusters=4)
-    mejor_k = resultado_previo['metricas']['mejor_k_matematico']
-    
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Parámetros del Modelo")
-    st.sidebar.info(f"Recomendación: Silhouette sugiere K = {mejor_k}.")
-    
-    k_elegido = st.sidebar.slider("Forzar Número de Perfiles (K)", min_value=2, max_value=8, value=int(mejor_k))
-    
-    resultado = ejecutar_pipeline_kmeans(df, n_clusters=k_elegido)
-    
-    st.subheader("1. Diagnóstico del Modelo")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Dimensiones Retenidas por PCA", f"{resultado['metricas']['dimensiones_pca']}")
-    col2.metric("Varianza Retenida", f"{resultado['metricas']['varianza_pca']:.1f}%")
-    col3.metric(f"Silhouette Score (K={k_elegido})", f"{resultado['metricas']['silhouette_actual']:.3f}")
-    
-    st.divider()
-    
-    col_g1, col_g2 = st.columns([2, 1])
-    
-    with col_g1:
-        st.subheader("2. Mapa de Similitud Criminal")
-        df_plot = resultado['df_clusters']
+        resultado_previo = ejecutar_pipeline_kmeans(df, n_clusters=4)
+        mejor_k = resultado_previo['metricas']['mejor_k_matematico']
         
-        hover_cols = ['Poblacion_Total']
-        if 'Entidad' in df_plot.columns:
-            hover_cols.append('Entidad')
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Parámetros K-Means")
+        st.sidebar.info(f"Silhouette sugiere K = {mejor_k}.")
+        k_elegido = st.sidebar.slider("Forzar Número de Perfiles (K)", min_value=2, max_value=8, value=int(mejor_k))
+        
+        resultado_kmeans = ejecutar_pipeline_kmeans(df, n_clusters=k_elegido)
+        
+        st.subheader("1. Diagnóstico del Modelo")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Dimensiones Retenidas por PCA", f"{resultado_kmeans['metricas']['dimensiones_pca']}")
+        col2.metric("Varianza Retenida", f"{resultado_kmeans['metricas']['varianza_pca']:.1f}%")
+        col3.metric(f"Silhouette Score (K={k_elegido})", f"{resultado_kmeans['metricas']['silhouette_actual']:.3f}")
+        
+        st.divider()
+        
+        col_g1, col_g2 = st.columns([2, 1])
+        with col_g1:
+            st.subheader("2. Mapa de Similitud Criminal")
+            df_plot = resultado_kmeans['df_clusters']
             
-        fig_2d = px.scatter(
-            df_plot, x='PCA_1', y='PCA_2',
-            color='Nombre_Cluster',
-            hover_name='Municipio', hover_data=hover_cols,
-            opacity=0.7,
-            color_discrete_sequence=px.colors.qualitative.Bold
+            hover_cols = ['Poblacion_Total']
+            if 'Entidad' in df_plot.columns:
+                hover_cols.append('Entidad')
+                
+            fig_2d = px.scatter(
+                df_plot, x='PCA_1', y='PCA_2',
+                color='Nombre_Cluster',
+                hover_name='Municipio', hover_data=hover_cols,
+                opacity=0.7,
+                color_discrete_sequence=px.colors.qualitative.Bold
+            )
+            fig_2d.update_xaxes(showticklabels=False)
+            fig_2d.update_yaxes(showticklabels=False)
+            st.plotly_chart(fig_2d, use_container_width=True)
+                
+        with col_g2:
+            st.subheader("Validación Matemática")
+            df_eval = resultado_kmeans['datos_evaluacion'].set_index('K')
+            st.line_chart(df_eval['Silhouette'], color="#ff4b4b")
+            
+        st.divider()
+        
+        st.subheader("3. ADN Criminal de los Perfiles")
+        df_perfiles = resultado_kmeans['perfiles_promedio'].T
+        
+        st.markdown("**Resumen Operativo:**")
+        for cluster_name in df_perfiles.columns:
+            top_3 = df_perfiles[cluster_name].nlargest(3).index.tolist()
+            top_3_limpio = [str(delito).replace('_', ' ').title() for delito in top_3]
+            st.markdown(f"- **{cluster_name}:** Predominan *{top_3_limpio[0]}*, *{top_3_limpio[1]}* y *{top_3_limpio[2]}*.")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        top_delitos = df_perfiles.sum(axis=1).sort_values(ascending=False).head(10).index
+        df_perfiles_top = df_perfiles.loc[top_delitos]
+        
+        fig_heat = px.imshow(
+            df_perfiles_top,
+            text_auto='.0f', 
+            aspect="auto",   
+            color_continuous_scale='Reds', 
+            labels=dict(x="Caracterización del Perfil", y="Tipo de Delito", color="Tasa 100k")
         )
-        fig_2d.update_xaxes(showticklabels=False)
-        fig_2d.update_yaxes(showticklabels=False)
-        st.plotly_chart(fig_2d, use_container_width=True)
-            
-    with col_g2:
-        st.subheader("Validación Matemática")
-        df_eval = resultado['datos_evaluacion'].set_index('K')
-        st.line_chart(df_eval['Silhouette'], color="#ff4b4b")
+        fig_heat.update_xaxes(side="top") 
+        st.plotly_chart(fig_heat, use_container_width=True)
+
+    # ================= PESTAÑA 2: DBSCAN =================
+    with tab_dbscan:
+        with st.expander("Justificación Metodológica: ¿Por qué DBSCAN?"):
+            st.write("""
+            **Objetivo:** Identificar focos rojos que rompen la estadística nacional.
+            * A diferencia de K-Means, **DBSCAN** no fuerza a los municipios a pertenecer a un grupo. Agrupa por densidad y cataloga como **Ruido (-1)** a los municipios hiperviolentos o atípicos, permitiendo ubicar blancos exactos para intervenciones tácticas.
+            """)
+
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Parámetros DBSCAN")
+        eps_elegido = st.sidebar.slider("Sensibilidad del Radar (EPS)", min_value=0.5, max_value=5.0, value=2.0, step=0.1)
+        st.sidebar.info("A mayor EPS, el modelo es más tolerante. A menor EPS, detecta más anomalías.")
+
+        resultado_dbscan = ejecutar_pipeline_dbscan(df, eps=eps_elegido)
         
-    st.divider()
-    
-    st.subheader("3. ADN Criminal de los Perfiles")
-    
-    df_perfiles = resultado['perfiles_promedio'].T
-    
-    st.markdown("Perfiles:**")
-    for cluster_name in df_perfiles.columns:
-        top_3 = df_perfiles[cluster_name].nlargest(3).index.tolist()
-        top_3_limpio = [str(delito).replace('_', ' ').title() for delito in top_3]
-        st.markdown(f"- **{cluster_name}:** Predominan *{top_3_limpio[0]}*, *{top_3_limpio[1]}* y *{top_3_limpio[2]}*.")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    top_delitos = df_perfiles.sum(axis=1).sort_values(ascending=False).head(10).index
-    df_perfiles_top = df_perfiles.loc[top_delitos]
-    
-    fig_heat = px.imshow(
-        df_perfiles_top,
-        text_auto='.0f', 
-        aspect="auto",   
-        color_continuous_scale='Reds', 
-        labels=dict(x="Caracterización del Perfil", y="Tipo de Delito", color="Tasa 100k")
-    )
-    fig_heat.update_xaxes(side="top") 
-    st.plotly_chart(fig_heat, use_container_width=True)
+        st.subheader("1. Detección de Focos Rojos Atípicos")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Clústeres Naturales", resultado_dbscan['metricas']['num_clusters_encontrados'])
+        c2.metric("Municipios Atípicos (Outliers)", resultado_dbscan['metricas']['num_outliers'], delta="Ruido", delta_color="inverse")
+        c3.metric("Porcentaje de Ruido", f"{resultado_dbscan['metricas']['porcentaje_ruido']}%")
+        
+        st.divider()
+        
+        col_db1, col_db2 = st.columns([2, 1.5])
+        
+        with col_db1:
+            st.subheader("2. Mapa de Aislamiento (Outliers)")
+            df_plot_dbscan = resultado_dbscan['df_completo'].copy()
+            df_plot_dbscan['Cluster_DBSCAN'] = df_plot_dbscan['Cluster_DBSCAN'].astype(str)
+            df_plot_dbscan['Cluster_DBSCAN'] = df_plot_dbscan['Cluster_DBSCAN'].replace({'-1': 'Outlier Atípico'})
+
+            # Colorear outliers en rojo, lo demás en azul base
+            color_map = {'Outlier Atípico': '#ef553b'}
+            for c in df_plot_dbscan['Cluster_DBSCAN'].unique():
+                if c != 'Outlier Atípico': color_map[c] = '#636efa'
+
+            fig_scatter_db = px.scatter(
+                df_plot_dbscan, x='PCA_1', y='PCA_2', color='Cluster_DBSCAN',
+                hover_name='Municipio',
+                color_discrete_map=color_map,
+                opacity=0.7
+            )
+            # Resaltar los puntos rojos haciéndolos ligeramente más grandes
+            fig_scatter_db.update_traces(marker=dict(size=8, line=dict(width=1, color='DarkSlateGrey')))
+            fig_scatter_db.update_xaxes(showticklabels=False)
+            fig_scatter_db.update_yaxes(showticklabels=False)
+            st.plotly_chart(fig_scatter_db, use_container_width=True)
+            
+        with col_db2:
+            st.subheader(f"3. Lista de Intervención Táctica")
+            if resultado_dbscan['metricas']['num_outliers'] > 0:
+                st.markdown("Municipios que no encajan en el comportamiento nacional:")
+                # Mostramos solo los top 15 para no hacer la tabla infinita visualmente
+                st.dataframe(resultado_dbscan['df_outliers'].head(15), use_container_width=True, hide_index=True)
+            else:
+                st.success("No se detectaron outliers con el nivel de sensibilidad actual.")
 
 
 def mostrar_patrones_delictivos(df: pd.DataFrame):
@@ -414,15 +472,15 @@ st.sidebar.title("Menú")
 
 opcion = st.sidebar.radio(
     "Selecciona un módulo:",
-    ("Inicio", "Análisis Exploratorio (EDA)", "Clustering (K-Means)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
+    ("Inicio", "Análisis Exploratorio (EDA)", "Agrupamiento (K-Means y DBSCAN)", "Consultar Datos", "Patrones y Pareto", "Análisis Demográfico")
 )
 
 if opcion == "Inicio":
     mostrar_pantalla_inicio(dataset_global)
 elif opcion == "Análisis Exploratorio (EDA)":
     mostrar_analisis_exploratorio(dataset_global)
-elif opcion == "Clustering (K-Means)":
-    mostrar_clustering(data_mart_global)
+elif opcion == "Agrupamiento (K-Means y DBSCAN)": # <--- NUEVO NOMBRE
+    mostrar_agrupamiento_inteligente(data_mart_global)
 elif opcion == "Consultar Datos":
     mostrar_tabla_datos(dataset_global)
 elif opcion == "Patrones y Pareto":
