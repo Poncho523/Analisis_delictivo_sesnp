@@ -21,7 +21,7 @@ from motor_analitico.consultador_con_POO import transformar_dataframe_a_objetos
 from motor_analitico.chi2 import calcular_dependencia_demografica
 from motor_analitico.estadistica_descriptiva import generar_reporte_eda 
 from motor_analitico.kmedias import ejecutar_pipeline_kmeans 
-from motor_analitico.dbscan_anomalias import ejecutar_pipeline_dbscan # <--- NUEVO IMPORT DBSCAN
+from motor_analitico.dbscan import ejecutar_pipeline_dbscan 
 from ETL.carga_data_mart import cargar_data_mart 
 
 # @st.cache_data salva vidas. Evita que lea los 300MB del CSV cada vez que mueven algo.
