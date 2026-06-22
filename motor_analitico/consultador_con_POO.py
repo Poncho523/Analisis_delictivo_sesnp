@@ -15,7 +15,6 @@ from dominio.clasificacion_delito import (
 from dominio.conteo_mensual import ConteoMensual, Mes
 from dominio.registro_incidencia import RegistroIncidencia
 
-# Clase extra para manejar delitos que no caen en tus 4 principales
 class DelitoOtros(DelitoAbstracto):
     def calcular_peso_estadistico(self) -> int:
         return 1
@@ -46,7 +45,7 @@ def transformar_dataframe_a_objetos(df_filtrado: pd.DataFrame) -> list[RegistroI
             delito = DelitoOtros(bien_juridico, tipo, subtipo, modalidad)
             
         registro = RegistroIncidencia(
-            id_registro=index, # Usamos el índice de Pandas como ID temporal
+            id_registro=index, 
             anio=2015,
             totalAnual=row['Total_Anual'],
             tasaAnual100k=row['Tasa_Anual_100k'],

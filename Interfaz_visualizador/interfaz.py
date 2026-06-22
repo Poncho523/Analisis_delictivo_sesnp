@@ -7,11 +7,8 @@ from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go 
 
-# Setup básico. 'wide' es indispensable, si lo dejo por defecto las tablas de Pandas
-# se aplastan horrible en monitores anchos y el usuario tiene que hacer scroll horizontal.
 st.set_page_config(page_title="Gestión de Incidentes SESNSP", layout="wide")
 
-# Hack asqueroso pero necesario de Python para encontrar las carpetas hermanas
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
@@ -24,7 +21,7 @@ from motor_analitico.kmedias import ejecutar_pipeline_kmeans
 from motor_analitico.dbscan import ejecutar_pipeline_dbscan 
 from ETL.carga_data_mart import cargar_data_mart 
 
-# @st.cache_data salva vidas. Evita que lea los 300MB del CSV cada vez que mueven algo.
+# @st.cache_data Evita que lea los 300MB del CSV cada vez que mueven algo.
 @st.cache_data
 def obtener_datos_cacheados():
     return cargar_datos_incidencia()
@@ -41,13 +38,11 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     st.title("Centro de Inteligencia Criminal (SESNSP)")
     st.markdown("Plataforma interactiva para perfilamiento y análisis de la incidencia delictiva municipal.")
     
-    # 1. CÁLCULOS 100% DINÁMICOS AL VUELO
     total_delitos = int(df['Total_Anual'].sum()) if 'Total_Anual' in df.columns else len(df)
     total_municipios = df['Municipio'].nunique()
     estado_top = df.groupby('Entidad')['Total_Anual'].sum().idxmax()
     delito_top = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().idxmax()
 
-    # 2. KPIs REALES 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Carpetas de Investigación", f"{total_delitos:,.0f}") 
     col2.metric("Municipios Analizados", f"{total_municipios:,}")
@@ -56,25 +51,24 @@ def mostrar_pantalla_inicio(df: pd.DataFrame):
     
     st.divider()
 
-    # 3. GUÍA OPERATIVA 
     st.subheader("Guía Operativa del Sistema")
     st.markdown("Seleccione un módulo en el menú lateral para iniciar la extracción de inteligencia:")
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info("**📈 Análisis Exploratorio (EDA)**\n\n Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
+        st.info("** Análisis Exploratorio (EDA)**\n\n Descubre cómo se distribuye el crimen y visualiza los focos rojos en crudo.")
     with c2:
-        st.warning("**🤖 Agrupamiento (IA)**\n\nCompara perfiles generales (K-Means) vs detección de anomalías atípicas (DBSCAN).")
+        st.warning("** Agrupamiento (IA)**\n\nCompara perfiles generales (K-Means) vs detección de anomalías atípicas (DBSCAN).")
     with c3:
-        st.error("**🎯 Patrones (Ley de Pareto)**\n\nVerificacion de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
+        st.error("** Patrones (Ley de Pareto)**\n\nVerificacion de la regla 80/20. Identifica la lista exacta de municipios que requieren intervención prioritaria.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        st.success("**📊 Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el perfil demografico afecta a tipo de crimen")
+        st.success("** Análisis Demográfico**\n\nPrueba estadística (Chi-Cuadrada) para validar si el perfil demografico afecta a tipo de crimen")
     with c5:
-        st.write("**🔍 Explorador**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
+        st.write("** Explorador**\n\nMotor de búsqueda detallado a nivel municipal para detectar niveles de riesgo y temporalidad crítica.")
     with c6:
         st.empty() 
 
@@ -90,34 +84,34 @@ def mostrar_analisis_exploratorio(df: pd.DataFrame):
 
     st.subheader("Distribución de la Criminalidad")
     st.plotly_chart(reporte["graficas"]["histograma"], use_container_width=True)
-    st.info("💡 La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
+    st.info("La distribución presenta una fuerte asimetría positiva, indicando que la mayoría de municipios tienen tasas relativamente bajas mientras un pequeño grupo concentra niveles excepcionalmente altos de criminalidad.")
     st.divider()
 
     st.subheader("Municipios Atípicos")
     st.plotly_chart(reporte["graficas"]["boxplot"], use_container_width=True)
-    st.info("💡 La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
+    st.info("La presencia de numerosos valores atípicos sugiere la existencia de focos rojos que requieren análisis y política pública diferenciada.")
     st.divider()
 
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Bienes Jurídicos Más Afectados")
         st.plotly_chart(reporte["graficas"]["bienes"], use_container_width=True)
-        st.info("💡 Los delitos patrimoniales representan la principal carga criminal observada en el país.")
+        st.info("Los delitos patrimoniales representan la principal carga criminal observada en el país.")
     with col2:
         st.subheader("Municipios de Mayor Riesgo")
         st.plotly_chart(reporte["graficas"]["municipios"], use_container_width=True)
-        st.info("💡 Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
+        st.info("Estos municipios presentan las mayores tasas relativas y constituyen prioridades para la asignación de recursos.")
     st.divider()
 
     col3, col4 = st.columns(2)
     with col3:
         st.subheader("Población vs Criminalidad")
         st.plotly_chart(reporte["graficas"]["scatter"], use_container_width=True)
-        st.info("💡 No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
+        st.info("No se observa una relación lineal fuerte entre tamaño poblacional absoluto y la tasa delictiva per cápita.")
     with col4:
         st.subheader("Concentración Criminal")
         st.plotly_chart(reporte["graficas"]["lorenz"], use_container_width=True)
-        st.info("💡 Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
+        st.info("Una proporción muy reducida de municipios concentra una gran parte de los delitos registrados a nivel nacional.")
 
 
 def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
@@ -126,15 +120,10 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
     st.markdown("Comparativa entre segmentación global (K-Means) y detección de focos rojos atípicos (DBSCAN).")
     
     # Creamos dos pestañas para organizar la información
-    tab_kmeans, tab_dbscan = st.tabs(["🤖 K-Means (Perfiles Globales)", "🎯 DBSCAN (Cazador de Anomalías)"])
+    tab_kmeans, tab_dbscan = st.tabs(["K-Means (Perfiles Globales)", "DBSCAN (Anomalías)"])
     
     # ================= PESTAÑA 1: K-MEANS =================
     with tab_kmeans:
-        with st.expander("Justificación Metodológica: ¿Por qué K-Means?"):
-            st.write("""
-            **Objetivo:** Descubrir la estructura subyacente y tipologías criminales generales del país.
-            * Se eligió **K-Means** por su capacidad robusta para agrupar variables continuas (tasas) y segmentar todos los municipios en perfiles interpretables mediante el análisis de sus centroides. Esto permite generalizar patrones para el diseño de políticas públicas.
-            """)
 
         resultado_previo = ejecutar_pipeline_kmeans(df, n_clusters=4)
         mejor_k = resultado_previo['metricas']['mejor_k_matematico']
@@ -205,13 +194,7 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
         fig_heat.update_xaxes(side="top") 
         st.plotly_chart(fig_heat, use_container_width=True)
 
-    # ================= PESTAÑA 2: DBSCAN =================
     with tab_dbscan:
-        with st.expander("Justificación Metodológica: ¿Por qué DBSCAN?"):
-            st.write("""
-            **Objetivo:** Identificar focos rojos que rompen la estadística nacional.
-            * A diferencia de K-Means, **DBSCAN** no fuerza a los municipios a pertenecer a un grupo. Agrupa por densidad y cataloga como **Ruido (-1)** a los municipios hiperviolentos o atípicos, permitiendo ubicar blancos exactos para intervenciones tácticas.
-            """)
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("Parámetros DBSCAN")
@@ -220,7 +203,7 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
 
         resultado_dbscan = ejecutar_pipeline_dbscan(df, eps=eps_elegido,min_samples=38)
         
-        st.subheader("1. Detección de Focos Rojos Atípicos")
+        st.subheader("Detección de Focos Rojos Atípicos")
         c1, c2, c3 = st.columns(3)
         c1.metric("Clústeres Naturales", resultado_dbscan['metricas']['num_clusters_encontrados'])
         c2.metric("Municipios Atípicos (Outliers)", resultado_dbscan['metricas']['num_outliers'], delta="Ruido", delta_color="inverse")
@@ -231,12 +214,12 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
         col_db1, col_db2 = st.columns([2, 1.5])
         
         with col_db1:
-            st.subheader("2. Mapa de Aislamiento (Outliers)")
+            st.subheader("Mapa de Aislamiento (Outliers)")
             df_plot_dbscan = resultado_dbscan['df_completo'].copy()
             df_plot_dbscan['Cluster_DBSCAN'] = df_plot_dbscan['Cluster_DBSCAN'].astype(str)
             df_plot_dbscan['Cluster_DBSCAN'] = df_plot_dbscan['Cluster_DBSCAN'].replace({'-1': 'Outlier Atípico'})
 
-            # Colorear outliers en rojo, lo demás en azul base
+            # Coloreamos outliers en rojo, lo demás en azul base
             color_map = {'Outlier Atípico': '#ef553b'}
             for c in df_plot_dbscan['Cluster_DBSCAN'].unique():
                 if c != 'Outlier Atípico': color_map[c] = '#636efa'
@@ -247,17 +230,15 @@ def mostrar_agrupamiento_inteligente(df: pd.DataFrame):
                 color_discrete_map=color_map,
                 opacity=0.7
             )
-            # Resaltar los puntos rojos haciéndolos ligeramente más grandes
             fig_scatter_db.update_traces(marker=dict(size=8, line=dict(width=1, color='DarkSlateGrey')))
             fig_scatter_db.update_xaxes(showticklabels=False)
             fig_scatter_db.update_yaxes(showticklabels=False)
             st.plotly_chart(fig_scatter_db, use_container_width=True)
             
         with col_db2:
-            st.subheader(f"3. Lista de Intervención Táctica")
+            st.subheader(f"Lista de outliers")
             if resultado_dbscan['metricas']['num_outliers'] > 0:
                 st.markdown("Municipios que no encajan en el comportamiento nacional:")
-                # Mostramos solo los top 15 para no hacer la tabla infinita visualmente
                 st.dataframe(resultado_dbscan['df_outliers'].head(15), use_container_width=True, hide_index=True)
             else:
                 st.success("No se detectaron outliers con el nivel de sensibilidad actual.")
@@ -404,14 +385,13 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     
     resultado = calcular_dependencia_demografica(df)
     
-    st.subheader("1. Resultado de Prueba de chi2")
+    st.subheader("Resultado de Prueba de chi2")
     
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.markdown("<br><br>", unsafe_allow_html=True)
         
-        # --- AQUÍ INYECTAMOS LA PRUEBA REINA (P-VALOR) ---
         p_val = resultado['diagnostico']['p_value']
         p_str = "< 0.001" if p_val < 0.001 else f"{p_val:.4f}"
         
@@ -452,7 +432,7 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     
     st.divider()
     
-    st.subheader("2. Perfil Criminal por Zona")
+    st.subheader("Perfil Criminal por Zona. Tabla de contingencia")
     
     df_porcentajes = resultado['perfil_criminal_porcentajes']
     
@@ -467,7 +447,6 @@ def mostrar_analisis_demografico(df: pd.DataFrame):
     fig.update_xaxes(side="top") 
     st.plotly_chart(fig, use_container_width=True)
 
-# ----------------- SIDEBAR Y ROUTING -----------------
 st.sidebar.title("Menú")
 
 opcion = st.sidebar.radio(

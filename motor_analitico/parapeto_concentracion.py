@@ -16,37 +16,34 @@ def calcular_pareto_municipios(df: pd.DataFrame) -> dict:
     """
     print("Agrupando volumen total de delitos por municipio...")
     
-    # 1. Agrupamos sumando los delitos reales (absolutos)
+    # Agrupamos sumando los delitos reales (absolutos)
     df_agrupado = df.groupby(['Cve_Municipio', 'Municipio', 'Entidad']).agg(
         Total_Anual=('Total_Anual', 'sum'),
         POB_TOTAL=('POB_TOTAL', 'max') 
     ).reset_index()
     
-    # 2. Recalculamos la Tasa SOLO para mostrarla en la tabla, si se requiere luego
+    # Recalculamos la Tasa SOLO para mostrarla en la tabla, si se requiere luego
     df_agrupado['Tasa_Anual_100k'] = np.where(
         df_agrupado['POB_TOTAL'] > 0, 
         (df_agrupado['Total_Anual'] / df_agrupado['POB_TOTAL']) * 100000, 
         0
     )
     
-    # 3. Ordenamos de mayor a menor basándonos en el VOLUMEN ABSOLUTO de delitos
+    # Ordenamos de mayor a menor basándonos en el VOLUMEN ABSOLUTO de delitos
     df_ordenado = df_agrupado.sort_values(by='Total_Anual', ascending=False).reset_index(drop=True)
     
-    # 4. MATEMÁTICA DE PARETO 
-    # Esta es la variable que causó el error, asegúrate de que esté aquí.
+    # MATEMÁTICA DE PARETO 
     total_delitos_nacional = float(df_ordenado['Total_Anual'].sum())
     
     df_ordenado['Porcentaje_Aportacion'] = (df_ordenado['Total_Anual'] / total_delitos_nacional) * 100
     df_ordenado['Porcentaje_Acumulado'] = df_ordenado['Porcentaje_Aportacion'].cumsum()
     
-    # 5. EXTRAEMOS LA INTELIGENCIA
     municipios_80_porciento = df_ordenado[df_ordenado['Porcentaje_Acumulado'] <= 80]
     
     cantidad_critica = len(municipios_80_porciento)
     total_municipios = len(df_ordenado)
     porcentaje_municipios = (cantidad_critica / total_municipios) * 100
     
-    # AQUÍ ESTÁ LA CLAVE QUE BUSCA LA INTERFAZ ('total_delitos_nacional')
     return {
         "datos_grafica": df_ordenado,
         "cantidad_critica": cantidad_critica,

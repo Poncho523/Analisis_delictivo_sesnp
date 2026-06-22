@@ -45,25 +45,21 @@ def calcular_dependencia_demografica(df: pd.DataFrame) -> dict:
     residuos_planos = residuos.unstack().reset_index()
     residuos_planos.columns = ['Asentamiento', 'Bien_juridico', 'Gravedad']
     
-    # Filtramos solo los que superan el umbral estadístico de atención (+2.0)
     focos_rojos_df = residuos_planos[residuos_planos['Gravedad'] > 2.0].sort_values(by='Gravedad', ascending=False)
     
-    # Creamos una lista de mensajes legibles
     alertas = []
-    for _, fila in focos_rojos_df.head(3).iterrows(): # Solo mostramos el Top 3 para no saturar
+    for _, fila in focos_rojos_df.head(3).iterrows(): 
         mensaje = f"🔴 En zona {fila['Asentamiento'].upper()}, el delito contra '{fila['Bien_juridico']}' es anormalmente alto."
         alertas.append(mensaje)
         
-    # Empaquetado final para la interfaz
     return {
         "diagnostico": {
             "existe_relacion": p_value < 0.05,
             "fuerza_relacion": fuerza_texto,
             "valor_cramer": round(v_cramer, 4),
-            "p_value": p_value # <--- NUEVO: EXPORTAMOS EL P-VALOR A LA INTERFAZ
+            "p_value": p_value 
         },
         "top_focos_rojos": alertas,
-        # Devolvemos la probabilidad condicional para graficarla en barras después
         "perfil_criminal_porcentajes": tabla_observada.div(tabla_observada.sum(axis=0), axis=1) * 100 
     }
 

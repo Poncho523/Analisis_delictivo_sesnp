@@ -16,11 +16,9 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
     Returns:
         pd.DataFrame: El dataset cargado, listo para cálculos matemáticos.
     """
-    # 1. Definir dónde se guardará la copia caché localmente
     ruta_base = Path(__file__).parent.parent
     ruta_cache = ruta_base / "datos_nivelados_2015_cache.csv"
 
-    # 2. Verificar si ya tenemos el archivo descargado (Patrón Caché)
     if not ruta_cache.exists():
         print(f"Archivo local no encontrado. Descargando desde Google Drive (ID: {file_id}) ...")
         print("Esto puede tardar un par de minutos (Aprox. 300MB)...")
@@ -28,7 +26,6 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
         # Construir URL directa
         url_drive = f'https://drive.google.com/uc?id={file_id}'
         
-        # gdown maneja automáticamente el token de confirmación de archivos grandes
         gdown.download(url_drive, str(ruta_cache), quiet=False)
         
         if not ruta_cache.exists():
@@ -37,13 +34,12 @@ def cargar_datos_incidencia(file_id: str = '1vsmdJFPhp_MlypHpiMGS8NpeYQBbBUmk') 
     else:
         print(f"Archivo encontrado en caché local: {ruta_cache.name}. Omitiendo descarga.")
 
-    # 3. Extracción a Pandas
+    # Extracción a Pandas
     print("Cargando dataset en memoria (Pandas)...")
     df = pd.read_csv(ruta_cache, encoding="utf-8", low_memory=False)
     
     return df
 
-# Bloque de prueba rápida
 if __name__ == "__main__":
     try:
         dataset = cargar_datos_incidencia()

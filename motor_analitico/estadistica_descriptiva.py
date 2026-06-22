@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 import sys
 from pathlib import Path
 
-# Fix de rutas
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
@@ -15,7 +14,6 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
     """
     Genera estadísticas y figuras interactivas de Plotly para el informe narrativo.
     """
-    # 1. Agrupación base
     df_muni = df.groupby(['Cve_Municipio', 'Municipio', 'POB_TOTAL'])['Total_Anual'].sum().reset_index()
 
     df_muni['Tasa_Anual_100k'] = np.where(
@@ -24,7 +22,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
         0
     )
 
-    # 2. Tabla de Estadísticas Descriptivas
+    # Tabla de Estadísticas Descriptivas
     columnas_stats = ['Total_Anual', 'Tasa_Anual_100k', 'POB_TOTAL']
     resultados = {}
 
@@ -44,9 +42,9 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
 
     df_stats = pd.DataFrame(resultados).round(2)
 
-    # 3. Construcción de Gráficas Individuales en Plotly
+    # Construcción de Gráficas Individuales en Plotly
 
-    # A) Histograma
+    # Histograma
     fig_hist = px.histogram(
         df_muni, x='Tasa_Anual_100k', nbins=50, 
         title="Distribución de la Tasa Delictiva",
@@ -54,7 +52,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
         labels={'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
     )
     
-    # B) Boxplot
+    # Boxplot
     fig_box = px.box(
         df_muni, x='Tasa_Anual_100k', 
         title="Detección de Municipios Atípicos",
@@ -62,7 +60,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
         labels={'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
     )
 
-    # C) Top Bienes Jurídicos
+    #  Top Bienes Jurídicos
     top_bienes = df.groupby('Bien_juridico_afectado')['Total_Anual'].sum().sort_values(ascending=False).head(10).reset_index()
     fig_bienes = px.bar(
         top_bienes, x='Total_Anual', y='Bien_juridico_afectado', orientation='h',
@@ -71,7 +69,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
     )
     fig_bienes.update_layout(yaxis={'categoryorder':'total ascending'})
 
-    # D) Top Municipios
+    # Top Municipios
     top_municipios = df_muni[df_muni['POB_TOTAL'] > 5000].sort_values('Tasa_Anual_100k', ascending=False).head(10)
     fig_munis = px.bar(
         top_municipios, x='Tasa_Anual_100k', y='Municipio', orientation='h',
@@ -80,7 +78,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
     )
     fig_munis.update_layout(yaxis={'categoryorder':'total ascending'})
 
-    # E) Scatter (Población vs Tasa)
+    # Scatter (Población vs Tasa)
     df_scatter = df_muni[df_muni['POB_TOTAL'] > 5000]
     fig_scatter = px.scatter(
         df_scatter, x='POB_TOTAL', y='Tasa_Anual_100k', 
@@ -89,7 +87,7 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
         labels={'POB_TOTAL': 'Población Total', 'Tasa_Anual_100k': 'Tasa por 100k Hab.'}
     )
 
-    # F) Curva de Lorenz
+    #  Curva de Lorenz
     delitos_ordenados = np.sort(df_muni['Total_Anual'].values)
     lorenz_curve = np.cumsum(delitos_ordenados) / np.sum(delitos_ordenados)
     lorenz_curve = np.insert(lorenz_curve, 0, 0)
@@ -110,7 +108,6 @@ def generar_reporte_eda(df: pd.DataFrame) -> dict:
     # Línea de equidad (la diagonal perfecta)
     fig_lorenz.add_shape(type="line", x0=0, y0=0, x1=100, y1=100, line=dict(color="gray", dash="dash"))
 
-    # Empaqueto todas las figuras y la tabla para mandarlas a la interfaz
     return {
         "estadisticas": df_stats,
         "graficas": {
