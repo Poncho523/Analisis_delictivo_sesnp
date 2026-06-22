@@ -6,7 +6,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import DBSCAN
 
-# Puente Arquitectónico
 ruta_raiz = Path(__file__).parent.parent
 sys.path.append(str(ruta_raiz))
 
@@ -16,55 +15,51 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     """
     Pipeline complementario: Tasas -> Escala -> PCA -> DBSCAN (Detección de Ruido)
     """
-    # 1. Filtramos municipios muy pequeños (Misma regla que K-Means)
+    # Filtramos municipios muy pequeños (Misma regla que K-Means)
     if 'Poblacion_Total' not in df.columns:
         raise KeyError("La columna 'Poblacion_Total' no se encontró en el Data Mart.")
         
     df_filtrado = df[df['Poblacion_Total'] >= 5000].copy()
     
-    # 2. Separar Metadata dinámicamente
     columnas_base = ['Cve_Municipio', 'Municipio', 'Poblacion_Total']
-    # Solo agregamos 'Entidad' si realmente existe en tu CSV
+    # Solo agregamos 'Entidad' si realmente existe en el CSV
     if 'Entidad' in df_filtrado.columns:
         columnas_base.append('Entidad')
         
     columnas_trampa = ['Tasa_Global_100k', 'Total_Delitos_Absoluto', 'Robos_Totales', 'Total']
     columnas_delitos = [col for col in df_filtrado.columns if col not in columnas_base and col not in columnas_trampa]
     
-    # 3. CONVERSIÓN A TASAS
     for delito in columnas_delitos:
         df_filtrado[delito] = (df_filtrado[delito] / df_filtrado['Poblacion_Total']) * 100000
 
     df_identificadores = df_filtrado[columnas_base].copy()
     X_numerico = df_filtrado[columnas_delitos].copy()
 
-    # 4. ESCALADO
+    #  ESCALADO
     scaler = StandardScaler()
     X_escalado = scaler.fit_transform(X_numerico)
 
-    # 5. PCA (Retenemos 90% de varianza, igual que K-Means)
+    #  PCA (Retenemos 90% de varianza, igual que K-Means)
     pca = PCA(n_components=0.90, random_state=42)
     X_pca = pca.fit_transform(X_escalado)
     varianza_retenida = sum(pca.explained_variance_ratio_) * 100
     n_componentes = X_pca.shape[1]
 
-    # --- AQUÍ INICIA LA MAGIA DE DBSCAN ---
     
-    # 6. EJECUCIÓN DE DBSCAN
-    # Nota: Si el usuario no manda min_samples, una regla de oro es 2 * dimensiones de PCA
+    #  EJECUCIÓN DE DBSCAN
     if min_samples == 5: # Si es el default, lo ajustamos inteligentemente a las dimensiones
         min_samples = max(4, n_componentes * 2)
 
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     etiquetas_dbscan = dbscan.fit_predict(X_pca)
 
-    # 7. RE-ENSAMBLAJE
+    #  RE-ENSAMBLAJE
     df_final = pd.concat([df_identificadores, X_numerico], axis=1)
     df_final['Cluster_DBSCAN'] = etiquetas_dbscan
     df_final['PCA_1'] = X_pca[:, 0]
     df_final['PCA_2'] = X_pca[:, 1]
 
-    # 8. SEPARACIÓN DE LA INTELIGENCIA (Ruido vs Clústeres Naturales)
+    # SEPARACIÓN DE LA INTELIGENCIA (Ruido vs Clústeres Naturales)
     df_outliers = df_final[df_final['Cluster_DBSCAN'] == -1].copy()
     df_clusters_validos = df_final[df_final['Cluster_DBSCAN'] != -1].copy()
     
@@ -72,10 +67,8 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     total_municipios = len(df_final)
     porcentaje_ruido = (num_outliers / total_municipios) * 100 if total_municipios > 0 else 0
     
-    # Cantidad de clústeres reales (excluyendo el -1)
     num_clusters = len(set(etiquetas_dbscan)) - (1 if -1 in etiquetas_dbscan else 0)
 
-    # 9. RESUMEN DE CLÚSTERES (Para la interfaz)
     if num_clusters > 0:
         resumen_clusters = df_clusters_validos.groupby('Cluster_DBSCAN').agg(
             Total_Municipios=('Cve_Municipio', 'count'),
@@ -85,7 +78,7 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
     else:
         resumen_clusters = pd.DataFrame(columns=['Cluster_DBSCAN', 'Total_Municipios', 'Poblacion_Promedio', 'Tipo'])
 
-    # 10. EVALUAR ESPECIALIDAD DE LOS OUTLIERS (Z-Score Inverso)
+    # EVALUAR ESPECIALIDAD DE LOS OUTLIERS (Z-Score Inverso)
     media_global = X_numerico.mean()
     std_global = X_numerico.std()
     
@@ -98,7 +91,7 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
         delito_anomalo = z_scores_outliers.idxmax(axis=1)
         df_outliers['Delito_Anomalo_Principal'] = delito_anomalo.str.replace('_', ' ').str.title()
         
-        # FIX: Mostrar dinámicamente las columnas base que sí existan + la nueva columna
+        # Mostrar dinámicamente las columnas base que sí existan + la nueva columna
         columnas_mostrar = columnas_base + ['Delito_Anomalo_Principal']
         df_outliers = df_outliers[columnas_mostrar]
 
@@ -120,7 +113,6 @@ def ejecutar_pipeline_dbscan(df: pd.DataFrame, eps: float = 1.5, min_samples: in
 if __name__ == "__main__":
     dataset = cargar_data_mart()
     
-    # eps de 2.0 suele funcionar muy bien post-PCA escalado, puedes jugar con este valor en Streamlit
     resultados = ejecutar_pipeline_dbscan(dataset, eps=2.0) 
     
     print("\n--- RESULTADOS DBSCAN ---")
