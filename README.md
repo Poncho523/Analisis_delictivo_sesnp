@@ -24,7 +24,9 @@ Analizar la distribución de la criminalidad en México e identificar patrones e
 
 El proyecto opera bajo dos flujos arquitectónicos diferenciados para garantizar la eficiencia (separación de la ingeniería de datos y el software en tiempo de ejecución):
 
-**A. Pipeline de Datos (Fase de Ingeniería \- *Offline*) Este fue el que usamos al momento de preparar los datos que ya estan en el google drive**
+**A. Pipeline de Datos (Fase de Ingeniería \- *Offline*)**
+
+Este fue el flujo utilizado para preparar los datos que ya están alojados en Google Drive.
 
 Datos Crudos SESNSP ➔ Scripts ETL ➔ Data Mart Municipal ➔ Almacenamiento Cloud (Google Drive)
 
@@ -47,7 +49,7 @@ ANALISIS\_DELICTIVO\_SESNP/
 │   ├── carga\_datos.py  
 │   ├── ETL(merge, agregando la población total y la tasa anual por cada 100k).py  
 │   ├── ETL(eliminar acentos, eliminar año y agregar total anual).py  
-│   ├── ETL(quitar los acentos del csv de municipios, eliminar año, clave_ent, sexo, ano y poblaciones).py  
+│   ├── ETL(quitar los acentos del csv de municipios, eliminar año, clave\_ent, sexo, ano y poblaciones).py  
 │   └── ETL(eliminamos las columnas que no nos sirven antes de hacer el merge).py  
 ├── Interfaz\_visualizador/  
 │   └── interfaz.py  
@@ -92,22 +94,38 @@ El trabajo de ingeniería de datos es el cimiento de los modelos de Machine Lear
 * **K-Means (Perfiles Globales)**  
   * *Pipeline técnico:* Tasas por cada 100k hab. ➔ StandardScaler ➔ PCA (Reducción de dimensionalidad) ➔ K-Means ➔ Evaluación con Silhouette Score ➔ Perfilamiento con Z-Scores.  
 * **DBSCAN (Detector de Anomalías)**  
-  * *Pipeline técnico:* Scala -> PCA ➔ DBSCAN (Agrupamiento por densidad) ➔ Aislamiento de Ruido (-1) ➔ Etiquetado de Anomalía Máxima (Z-Score Inverso).  
+  * *Pipeline técnico:* Escala ➔ PCA ➔ DBSCAN (Agrupamiento por densidad) ➔ Aislamiento de Ruido (-1) ➔ Etiquetado de Anomalía Máxima (Z-Score Inverso).  
   * *Para qué sirve:* Encuentra los focos rojos y municipios hiperviolentos que rompen por completo la estadística nacional.  
 * **Consultador POO**  
   * *Implementación:* Módulo de consultas diseñado bajo el paradigma de Orientación a Objetos, encapsulando la lógica de filtrado y extrayendo información de manera eficiente y estructurada.
 
 ## **9\. Instalación**
 
-Ejecute los siguientes comandos en su terminal:
+**Advertencia de Almacenamiento:** Para el correcto funcionamiento de la interfaz, el sistema descargará automáticamente dos archivos .csv desde la nube a la carpeta raíz del proyecto (uno de ellos pesa aprox. 350 MB). Sumando estos archivos y las librerías de Python, se requiere de **al menos 500 MB** de espacio libre en disco.
 
-git clone \<https://github.com/Poncho523/Analisis_delictivo_sesnp.git>  
-cd ANALISIS\_DELICTIVO\_SESNP  
+**1\. Clonar el repositorio:**
+
+git clone \[[https://github.com/Poncho523/Analisis\_delictivo\_sesnp.git](https://github.com/Poncho523/Analisis_delictivo_sesnp.git)\]
+
+cd Analisis\_delictivo\_sesnp
+
+**2\. Crear y activar un entorno virtual (Altamente Recomendado):**
+
+* **En Windows:**  
+  python \-m venv venv  
+  .\\venv\\Scripts\\activate
+
+* **En Linux / macOS:**  
+  python3 \-m venv venv  
+  source venv/bin/activate
+
+**3\. Instalar las dependencias:**
+
 pip install \-r librerias.txt
 
 ## **10\. Ejecución**
 
-Para levantar la interfaz web interactiva:
+Para levantar la interfaz web interactiva, ejecute desde la raiz:
 
 streamlit run Interfaz\_visualizador/interfaz.py
 
@@ -119,7 +137,7 @@ pip install \-r librerias.txt
 
 ## **12\. Guía de Uso**
 
-1. Abrir la aplicación (automático en el navegador tras la ejecución).  
+1. Abrir la aplicación (se abrirá automáticamente en el navegador tras la ejecución).  
 2. Seleccionar el módulo analítico deseado desde la barra de navegación lateral.  
 3. Ingresar los parámetros solicitados (filtros de estado, número de clústeres, sensibilidad EPS, etc.).  
 4. Explorar e interpretar los resultados visuales y tabulares generados.
@@ -147,4 +165,3 @@ pip install \-r librerias.txt
 
 * Velazquez Rojas Alfonso  
 * Barajas Pablo Andrea Raquel
-
